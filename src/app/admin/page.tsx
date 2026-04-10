@@ -2,14 +2,9 @@ import { PageHeader } from "@/components/shared/page-header";
 import { StatCard } from "@/components/shared/stat-card";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { IngestionBadge, StatusBadge, TrustBadge } from "@/components/shared/status-badges";
-import { adminDashboardStats, sources } from "@/lib/mock-data";
-import { formatRelativeTime } from "@/lib/utils";
 import Link from "next/link";
 
 export default function AdminDashboardPage() {
-  const stats = adminDashboardStats;
-
   return (
     <div className="space-y-8">
       <PageHeader
@@ -19,33 +14,11 @@ export default function AdminDashboardPage() {
 
       {/* Stats Grid */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-        <StatCard
-          title="Total Sources"
-          value={stats.totalSources}
-          description="Knowledge base entries"
-        />
-        <StatCard
-          title="Active Sources"
-          value={stats.activeSources}
-          description="In RAG corpus"
-          trend={{ value: 12, label: "this month" }}
-        />
-        <StatCard
-          title="Pending Ingestion"
-          value={stats.pendingIngestion}
-          description="Awaiting processing"
-        />
-        <StatCard
-          title="Total Users"
-          value={stats.totalUsers}
-          description="Registered players"
-          trend={{ value: 8, label: "this week" }}
-        />
-        <StatCard
-          title="Plans Generated"
-          value={stats.totalPlans}
-          description="Training plans created"
-        />
+        <StatCard title="Total Sources" value={0} description="Knowledge base entries" />
+        <StatCard title="Active Sources" value={0} description="In RAG corpus" />
+        <StatCard title="Pending Ingestion" value={0} description="Awaiting processing" />
+        <StatCard title="Total Users" value={0} description="Registered players" />
+        <StatCard title="Plans Generated" value={0} description="Training plans created" />
       </div>
 
       {/* System Status */}
@@ -53,28 +26,26 @@ export default function AdminDashboardPage() {
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
             <CardTitle className="text-base font-semibold">System Status</CardTitle>
-            <Badge variant={stats.systemStatus === "healthy" ? "success" : "destructive"}>
-              {stats.systemStatus === "healthy" ? "● Healthy" : "● Issue Detected"}
-            </Badge>
+            <Badge variant="secondary">● Not Connected</Badge>
           </div>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
             <div className="space-y-1">
               <p className="text-muted-foreground">RAG Pipeline</p>
-              <p className="font-medium text-success">Operational</p>
+              <p className="font-medium text-muted-foreground">Not configured</p>
             </div>
             <div className="space-y-1">
               <p className="text-muted-foreground">Vector Store</p>
-              <p className="font-medium text-success">Connected</p>
+              <p className="font-medium text-muted-foreground">Not connected</p>
             </div>
             <div className="space-y-1">
               <p className="text-muted-foreground">AI Model</p>
-              <p className="font-medium text-success">Gemini 3.1 Pro</p>
+              <p className="font-medium text-muted-foreground">Not configured</p>
             </div>
             <div className="space-y-1">
               <p className="text-muted-foreground">Database</p>
-              <p className="font-medium text-success">Connected</p>
+              <p className="font-medium text-muted-foreground">Not connected</p>
             </div>
           </div>
         </CardContent>
@@ -95,29 +66,35 @@ export default function AdminDashboardPage() {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              {sources.slice(0, 5).map((source) => (
-                <Link
-                  key={source.id}
-                  href={`/admin/sources/${source.id}`}
-                  className="flex items-start justify-between gap-3 group"
-                >
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium truncate group-hover:text-primary transition-colors">
-                      {source.title}
-                    </p>
-                    <div className="flex items-center gap-2 mt-1">
-                      <span className="text-xs text-muted-foreground capitalize">
-                        {source.sourceType}
-                      </span>
-                      <span className="text-xs text-muted-foreground">·</span>
-                      <span className="text-xs text-muted-foreground">
-                        {formatRelativeTime(source.createdAt)}
-                      </span>
-                    </div>
-                  </div>
-                  <IngestionBadge state={source.ingestionState} />
-                </Link>
+            <p className="text-sm text-muted-foreground text-center py-8">
+              No sources yet. Add your first knowledge source to get started.
+            </p>
+          </CardContent>
+        </Card>
+
+        {/* Ingestion Queue */}
+        <Card>
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-base font-semibold">Ingestion Queue</CardTitle>
+              <Link
+                href="/admin/ingestion"
+                className="text-xs text-primary font-medium hover:underline"
+              >
+                View all →
+              </Link>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground text-center py-8">
+              No ingestion jobs. Sources will appear here once added.
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+}
               ))}
             </div>
           </CardContent>

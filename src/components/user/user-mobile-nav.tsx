@@ -21,7 +21,7 @@ export function UserMobileNav() {
       <header className="flex h-14 items-center justify-between border-b bg-card px-4">
         <Logo size="sm" />
         <div className="h-7 w-7 rounded-full bg-primary/10 flex items-center justify-center text-[10px] font-bold text-primary">
-          MC
+          ?
         </div>
       </header>
       <nav className="fixed bottom-0 left-0 right-0 z-50 flex items-center justify-around border-t bg-card/95 backdrop-blur px-2 py-2 safe-area-pb">

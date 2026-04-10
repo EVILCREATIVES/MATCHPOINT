@@ -62,11 +62,11 @@ export function UserSidebar() {
         </Link>
         <div className="flex items-center gap-3 pt-3 border-t">
           <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-xs font-bold text-primary">
-            MC
+            ?
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium truncate">Marcus Chen</p>
-            <p className="text-xs text-muted-foreground truncate">Intermediate</p>
+            <p className="text-sm font-medium truncate">Player</p>
+            <p className="text-xs text-muted-foreground truncate">Set up profile</p>
           </div>
         </div>
       </div>

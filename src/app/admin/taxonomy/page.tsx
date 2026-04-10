@@ -1,15 +1,9 @@
 import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { categories } from "@/lib/mock-data";
-import { sources } from "@/lib/mock-data";
 
 export default function TaxonomyPage() {
-  const getCategorySourceCount = (catId: string) =>
-    sources.filter((s) => s.categoryId === catId).length;
-
   return (
     <div className="space-y-6">
       <PageHeader
@@ -21,37 +15,18 @@ export default function TaxonomyPage() {
       {/* Search */}
       <Input placeholder="Search categories…" className="max-w-sm" />
 
-      {/* Categories Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {categories.map((category) => {
-          const count = getCategorySourceCount(category.id);
-          return (
-            <Card key={category.id} className="hover:border-primary/30 transition-colors">
-              <CardContent className="p-5">
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center gap-3">
-                    <span className="text-2xl">{category.icon}</span>
-                    <div>
-                      <h3 className="font-semibold text-sm">{category.name}</h3>
-                      <p className="text-xs text-muted-foreground mt-0.5">
-                        {category.slug}
-                      </p>
-                    </div>
-                  </div>
-                  <Badge variant="secondary" className="text-xs">
-                    {count} {count === 1 ? "source" : "sources"}
-                  </Badge>
-                </div>
-                {category.description && (
-                  <p className="text-xs text-muted-foreground mt-3">
-                    {category.description}
-                  </p>
-                )}
-              </CardContent>
-            </Card>
-          );
-        })}
-      </div>
+      {/* Empty State */}
+      <Card>
+        <CardContent className="p-12 text-center">
+          <div className="text-4xl mb-3">📂</div>
+          <h3 className="font-semibold">No categories yet</h3>
+          <p className="text-sm text-muted-foreground mt-1 max-w-md mx-auto">
+            Create categories to organize your knowledge base. Categories help structure sources
+            and make content easier to find.
+          </p>
+          <Button className="mt-4">+ Add Category</Button>
+        </CardContent>
+      </Card>
 
       {/* Tag Cloud */}
       <Card>
@@ -64,16 +39,9 @@ export default function TaxonomyPage() {
           </div>
         </CardHeader>
         <CardContent>
-          <div className="flex flex-wrap gap-2">
-            {Array.from(new Set(sources.flatMap((s) => s.tags))).map((tag) => (
-              <Badge key={tag} variant="secondary" className="cursor-pointer hover:bg-accent">
-                {tag}
-                <span className="ml-1.5 text-muted-foreground">
-                  {sources.filter((s) => s.tags.includes(tag)).length}
-                </span>
-              </Badge>
-            ))}
-          </div>
+          <p className="text-sm text-muted-foreground text-center py-4">
+            No tags yet. Tags will appear here as you add them to sources.
+          </p>
         </CardContent>
       </Card>
     </div>

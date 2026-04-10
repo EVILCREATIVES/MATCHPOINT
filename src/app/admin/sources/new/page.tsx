@@ -8,7 +8,6 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { categories } from "@/lib/mock-data";
 import type { SourceType } from "@/types";
 
 const sourceTypes: { type: SourceType; label: string; icon: string; description: string }[] = [
@@ -131,11 +130,6 @@ export default function NewSourcePage() {
                   <label className="text-sm font-medium">Category</label>
                   <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
                     <option value="">Select category…</option>
-                    {categories.map((cat) => (
-                      <option key={cat.id} value={cat.id}>
-                        {cat.icon} {cat.name}
-                      </option>
-                    ))}
                   </select>
                 </div>
 
