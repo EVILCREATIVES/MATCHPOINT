@@ -29,7 +29,7 @@ export async function POST(request: NextRequest) {
   }
 
   const blob = await put(`sources/${Date.now()}-${file.name}`, file, {
-    access: "private",
+    access: "public",
     addRandomSuffix: true,
   });
 
