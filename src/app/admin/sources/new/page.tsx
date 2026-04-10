@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useCallback } from "react";
 import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -19,6 +19,43 @@ const sourceTypes: { type: SourceType; label: string; icon: string; description:
 
 export default function NewSourcePage() {
   const [selectedType, setSelectedType] = useState<SourceType | null>(null);
+  const [uploadedFile, setUploadedFile] = useState<{ url: string; filename: string; size: number } | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [dragOver, setDragOver] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleUpload = useCallback(async (file: File) => {
+    setUploadError(null);
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await fetch("/api/upload", { method: "POST", body: formData });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Upload failed");
+      }
+      const data = await res.json();
+      setUploadedFile({ url: data.url, filename: data.filename, size: data.size });
+    } catch (err: unknown) {
+      setUploadError(err instanceof Error ? err.message : "Upload failed");
+    } finally {
+      setUploading(false);
+    }
+  }, []);
+
+  const onFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) handleUpload(file);
+  };
+
+  const onDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setDragOver(false);
+    const file = e.dataTransfer.files[0];
+    if (file) handleUpload(file);
+  }, [handleUpload]);
 
   return (
     <div className="space-y-6 max-w-3xl">
@@ -91,11 +128,52 @@ export default function NewSourcePage() {
               {selectedType === "pdf" && (
                 <div className="space-y-2">
                   <label className="text-sm font-medium">Upload PDF *</label>
-                  <div className="border-2 border-dashed rounded-lg p-8 text-center hover:border-primary/50 transition-colors cursor-pointer">
-                    <div className="text-3xl mb-2">📄</div>
-                    <p className="text-sm font-medium">Drop your PDF here or click to browse</p>
-                    <p className="text-xs text-muted-foreground mt-1">Max 50 MB · PDF files only</p>
-                  </div>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept=".pdf,application/pdf"
+                    className="hidden"
+                    onChange={onFileChange}
+                  />
+                  {!uploadedFile ? (
+                    <div
+                      className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors cursor-pointer ${
+                        dragOver ? "border-primary bg-primary/5" : "hover:border-primary/50"
+                      } ${uploading ? "pointer-events-none opacity-60" : ""}`}
+                      onClick={() => fileInputRef.current?.click()}
+                      onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+                      onDragLeave={() => setDragOver(false)}
+                      onDrop={onDrop}
+                    >
+                      <div className="text-3xl mb-2">{uploading ? "⏳" : "📄"}</div>
+                      <p className="text-sm font-medium">
+                        {uploading ? "Uploading…" : "Drop your PDF here or click to browse"}
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-1">Max 50 MB · PDF files only</p>
+                    </div>
+                  ) : (
+                    <div className="border rounded-lg p-4 flex items-center justify-between bg-muted/30">
+                      <div className="flex items-center gap-3">
+                        <span className="text-2xl">✅</span>
+                        <div>
+                          <p className="text-sm font-medium">{uploadedFile.filename}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {(uploadedFile.size / (1024 * 1024)).toFixed(1)} MB · Uploaded
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        className="text-xs text-muted-foreground hover:text-destructive"
+                        onClick={() => { setUploadedFile(null); if (fileInputRef.current) fileInputRef.current.value = ""; }}
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  )}
+                  {uploadError && (
+                    <p className="text-xs text-destructive">{uploadError}</p>
+                  )}
                 </div>
               )}
 
