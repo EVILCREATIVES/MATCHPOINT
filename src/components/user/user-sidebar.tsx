@@ -46,6 +46,13 @@ export function UserSidebar() {
       </nav>
       <div className="px-6 py-4 border-t space-y-3">
         <Link
+          href="/admin"
+          className="flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
+        >
+          <span className="text-base">🛡</span>
+          Admin
+        </Link>
+        <Link
           href="/dashboard/video-analysis"
           className="flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
         >

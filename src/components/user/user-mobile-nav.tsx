@@ -10,7 +10,7 @@ const userMobileNav = [
   { label: "Training", href: "/dashboard/training", icon: "🎯" },
   { label: "Lessons", href: "/dashboard/lessons", icon: "📖" },
   { label: "Progress", href: "/dashboard/progress", icon: "📊" },
-  { label: "Profile", href: "/dashboard/profile", icon: "⚙" },
+  { label: "Admin", href: "/admin", icon: "🛡" },
 ];
 
 export function UserMobileNav() {
