@@ -16,7 +16,25 @@ import {
   varchar,
   real,
   pgEnum,
+  customType,
 } from "drizzle-orm/pg-core";
+
+// ── Custom pgvector type ──
+
+const vector = customType<{ data: number[]; driverData: string }>({
+  dataType() {
+    return "vector(768)";
+  },
+  toDriver(value: number[]): string {
+    return `[${value.join(",")}]`;
+  },
+  fromDriver(value: string): number[] {
+    return value
+      .slice(1, -1)
+      .split(",")
+      .map(Number);
+  },
+});
 
 // ── Enums ──
 
@@ -105,6 +123,7 @@ export const sourceChunks = pgTable("source_chunks", {
   chunkIndex: integer("chunk_index").notNull(),
   tokenCount: integer("token_count").notNull().default(0),
   embeddingId: varchar("embedding_id", { length: 255 }),
+  embedding: vector("embedding"),
   metadata: jsonb("metadata").$type<Record<string, unknown>>().default({}),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { PageHeader } from "@/components/shared/page-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -8,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import type { SourceType } from "@/types";
+import type { SourceType, SkillLevel, TrustLevel } from "@/types";
 
 const sourceTypes: { type: SourceType; label: string; icon: string; description: string }[] = [
   { type: "pdf", label: "PDF Document", icon: "📄", description: "Upload a PDF book, paper, or guide" },
@@ -18,12 +19,27 @@ const sourceTypes: { type: SourceType; label: string; icon: string; description:
 ];
 
 export default function NewSourcePage() {
+  const router = useRouter();
   const [selectedType, setSelectedType] = useState<SourceType | null>(null);
   const [uploadedFile, setUploadedFile] = useState<{ url: string; filename: string; size: number } | null>(null);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Form fields
+  const [title, setTitle] = useState("");
+  const [author, setAuthor] = useState("");
+  const [description, setDescription] = useState("");
+  const [manualContent, setManualContent] = useState("");
+  const [websiteUrl, setWebsiteUrl] = useState("");
+  const [youtubeUrl, setYoutubeUrl] = useState("");
+  const [skillLevel, setSkillLevel] = useState<SkillLevel | "">("");
+  const [tagsInput, setTagsInput] = useState("");
+  const [visibility, setVisibility] = useState<"public" | "private">("public");
+  const [trustLevel, setTrustLevel] = useState<TrustLevel>("unreviewed");
 
   const handleUpload = useCallback(async (file: File) => {
     setUploadError(null);
@@ -41,12 +57,74 @@ export default function NewSourcePage() {
     } catch (err: unknown) {
       setUploadError(err instanceof Error ? err.message : "Upload failed");
     } finally {
-      setUploading(false);
-    }
-  }, []);
 
-  const onFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
+  const handleSubmit = async () => {
+    if (!selectedType || !title.trim()) return;
+
+    setSubmitting(true);
+    setSubmitError(null);
+
+    try {
+      const tags = tagsInput
+        .split(",")
+        .map((t) => t.trim())
+        .filter(Boolean);
+
+      // 1. Create the source in the DB
+      const sourceRes = await fetch("/api/sources", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: title.trim(),
+          sourceType: selectedType,
+          author: author.trim() || undefined,
+          description: description.trim() || undefined,
+          sourceUrl: selectedType === "pdf" ? uploadedFile?.url
+            : selectedType === "website" ? websiteUrl.trim()
+            : selectedType === "youtube" ? youtubeUrl.trim()
+            : undefined,
+          fileSize: uploadedFile?.size,
+          skillLevel: skillLevel || undefined,
+          tags,
+          visibility,
+          trustLevel,
+          content: selectedType === "manual" ? manualContent.trim() : undefined,
+        }),
+      });
+
+      if (!sourceRes.ok) {
+        const data = await sourceRes.json();
+        throw new Error(data.error || "Failed to create source");
+      }
+
+      const { source } = await sourceRes.json();
+
+      // 2. Trigger ingestion (for PDF type only — others need parsing implementations)
+      if (selectedType === "pdf" && uploadedFile) {
+        await fetch("/api/ingest", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ sourceId: source.id }),
+        });
+        // We don't await the full result — ingestion runs and updates status
+      }
+
+      // 3. Navigate to sources list
+      router.push("/admin/sources");value={title} onChange={(e) => setTitle(e.target.value)} />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Author</label>
+                <Input placeholder="e.g., Coach Mike Trent" value={author} onChange={(e) => setAuthor(e.target.value)} />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Description</label>
+                <Textarea
+                  placeholder="Brief description of the content…"
+                  rows={3}
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value).files?.[0];
     if (file) handleUpload(file);
   };
 
@@ -180,14 +258,14 @@ export default function NewSourcePage() {
               {selectedType === "website" && (
                 <div className="space-y-2">
                   <label className="text-sm font-medium">Website URL *</label>
-                  <Input placeholder="https://example.com/tennis-guide" type="url" />
+                  <Input placeholder="https://example.com/tennis-guide" type="url" value={websiteUrl} onChange={(e) => setWebsiteUrl(e.target.value)} />
                 </div>
               )}
 
               {selectedType === "youtube" && (
                 <div className="space-y-2">
                   <label className="text-sm font-medium">YouTube URL *</label>
-                  <Input placeholder="https://youtube.com/watch?v=…" type="url" />
+                  <Input placeholder="https://youtube.com/watch?v=…" type="url" value={youtubeUrl} onChange={(e) => setYoutubeUrl(e.target.value)} />
                 </div>
               )}
 
@@ -197,6 +275,8 @@ export default function NewSourcePage() {
                   <Textarea
                     placeholder="Paste or write the content here…"
                     rows={10}
+                    value={manualContent}
+                    onChange={(e) => setManualContent(e.target.value)}
                   />
                 </div>
               )}
@@ -213,7 +293,11 @@ export default function NewSourcePage() {
 
                 <div className="space-y-2">
                   <label className="text-sm font-medium">Skill Level</label>
-                  <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
+                  <select
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                    value={skillLevel}
+                    onChange={(e) => setSkillLevel(e.target.value as SkillLevel | "")}
+                  >
                     <option value="">Select level…</option>
                     <option value="beginner">Beginner</option>
                     <option value="intermediate">Intermediate</option>
@@ -225,7 +309,11 @@ export default function NewSourcePage() {
 
               <div className="space-y-2">
                 <label className="text-sm font-medium">Tags</label>
-                <Input placeholder="Enter tags separated by commas…" />
+                <Input
+                  placeholder="Enter tags separated by commas…"
+                  value={tagsInput}
+                  onChange={(e) => setTagsInput(e.target.value)}
+                />
                 <p className="text-xs text-muted-foreground">
                   e.g., forehand, technique, biomechanics
                 </p>
@@ -234,15 +322,35 @@ export default function NewSourcePage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <label className="text-sm font-medium">Visibility</label>
-                  <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
+                  <select
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                    value={visibility}
+                    onChange={(e) => setVisibility(e.target.value as "public" | "private")}
+                  >
                     <option value="public">Public</option>
                     <option value="private">Private</option>
                   </select>
                 </div>
 
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Trust Level</label>
-                  <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
+                <div className="space-y-2">between gap-3">
+            <div>
+              {submitError && (
+                <p className="text-sm text-destructive">{submitError}</p>
+              )}
+            </div>
+            <div className="flex items-center gap-3">
+              <Button variant="outline" onClick={() => setSelectedType(null)} disabled={submitting}>
+                Cancel
+              </Button>
+              <Button
+                onClick={handleSubmit}
+                disabled={submitting || !title.trim() || (selectedType === "pdf" && !uploadedFile)}
+              >
+                {submitting ? "Creating…" : "Add Source & Start Ingestion"}
+              </Button>
+            </div
+                    onChange={(e) => setTrustLevel(e.target.value as TrustLevel)}
+                  >
                     <option value="unreviewed">Unreviewed</option>
                     <option value="trusted">Trusted</option>
                     <option value="untrusted">Untrusted</option>

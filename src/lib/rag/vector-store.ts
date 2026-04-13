@@ -1,17 +1,100 @@
 // ============================================================
-// MATCHPOINT — Placeholder Vector Store
+// MATCHPOINT — PostgreSQL pgvector Store
 // ============================================================
-// In-memory vector store for development. Replace with:
-// - Pinecone
-// - Supabase pgvector
-// - Weaviate
-// - Qdrant
-// - ChromaDB
-// when deploying to production.
+// Uses PostgreSQL with pgvector extension for vector similarity
+// search. Falls back to InMemoryVectorStore for dev/testing.
 // ============================================================
 
+import { sql } from "drizzle-orm";
+import { db } from "@/lib/db";
+import { sourceChunks, sources } from "@/lib/db/schema";
+import { eq } from "drizzle-orm";
 import type { IVectorStore, EmbeddingVector, RetrievalResult } from "./types";
 
+export class PgVectorStore implements IVectorStore {
+  async upsert(vectors: EmbeddingVector[]): Promise<void> {
+    for (const v of vectors) {
+      const vectorStr = `[${v.vector.join(",")}]`;
+      await db
+        .update(sourceChunks)
+        .set({
+          embedding: sql`${vectorStr}::vector`,
+          embeddingId: v.id,
+        })
+        .where(eq(sourceChunks.id, v.id));
+    }
+  }
+
+  async query(
+    vector: number[],
+    topK: number,
+    filters?: Record<string, unknown>
+  ): Promise<RetrievalResult[]> {
+    const vectorStr = `[${vector.join(",")}]`;
+
+    // Build filter conditions
+    let filterCondition = sql`sc.embedding IS NOT NULL`;
+
+    if (filters?.sourceIds && Array.isArray(filters.sourceIds) && filters.sourceIds.length > 0) {
+      const ids = filters.sourceIds.map((id: string) => `'${id}'`).join(",");
+      filterCondition = sql`${filterCondition} AND sc.source_id IN (${sql.raw(ids)})`;
+    }
+
+    if (filters?.skillLevels && Array.isArray(filters.skillLevels) && filters.skillLevels.length > 0) {
+      const levels = filters.skillLevels.map((l: string) => `'${l}'`).join(",");
+      filterCondition = sql`${filterCondition} AND s.skill_level IN (${sql.raw(levels)})`;
+    }
+
+    if (filters?.trustLevels && Array.isArray(filters.trustLevels) && filters.trustLevels.length > 0) {
+      const levels = filters.trustLevels.map((l: string) => `'${l}'`).join(",");
+      filterCondition = sql`${filterCondition} AND s.trust_level IN (${sql.raw(levels)})`;
+    }
+
+    const results = await db.execute(sql`
+      SELECT
+        sc.id as chunk_id,
+        sc.content,
+        sc.source_id,
+        s.title as source_title,
+        sc.metadata,
+        1 - (sc.embedding <=> ${sql.raw(`'${vectorStr}'`)}::vector) as score
+      FROM source_chunks sc
+      JOIN sources s ON s.id = sc.source_id
+      WHERE ${filterCondition}
+        AND s.status = 'active'
+        AND s.ingestion_state = 'completed'
+      ORDER BY sc.embedding <=> ${sql.raw(`'${vectorStr}'`)}::vector
+      LIMIT ${topK}
+    `);
+
+    return (results.rows as Record<string, unknown>[]).map((row) => ({
+      chunkId: row.chunk_id as string,
+      content: row.content as string,
+      score: row.score as number,
+      sourceId: row.source_id as string,
+      sourceTitle: row.source_title as string,
+      metadata: (row.metadata as Record<string, unknown>) || {},
+    }));
+  }
+
+  async delete(ids: string[]): Promise<void> {
+    for (const id of ids) {
+      await db
+        .update(sourceChunks)
+        .set({ embedding: sql`NULL`, embeddingId: null })
+        .where(eq(sourceChunks.id, id));
+    }
+  }
+
+  async count(): Promise<number> {
+    const result = await db.execute(
+      sql`SELECT COUNT(*) as cnt FROM source_chunks WHERE embedding IS NOT NULL`
+    );
+    return Number((result.rows[0] as Record<string, unknown>).cnt) || 0;
+  }
+}
+
+// Keep InMemoryVectorStore for testing/development
 export class InMemoryVectorStore implements IVectorStore {
   private vectors: Map<string, EmbeddingVector> = new Map();
 
@@ -27,14 +110,11 @@ export class InMemoryVectorStore implements IVectorStore {
     _filters?: Record<string, unknown>
   ): Promise<RetrievalResult[]> {
     const results: { id: string; score: number; vec: EmbeddingVector }[] = [];
-
     for (const [id, stored] of this.vectors) {
       const score = this.cosineSimilarity(vector, stored.vector);
       results.push({ id, score, vec: stored });
     }
-
     results.sort((a, b) => b.score - a.score);
-
     return results.slice(0, topK).map((r) => ({
       chunkId: r.id,
       content: (r.vec.metadata.content as string) || "",

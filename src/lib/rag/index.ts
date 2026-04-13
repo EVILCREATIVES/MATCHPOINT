@@ -4,6 +4,8 @@
 
 export * from "./types";
 export { SimpleTextChunker } from "./chunker";
-export { PlaceholderEmbeddingProvider } from "./embeddings";
-export { InMemoryVectorStore } from "./vector-store";
+export { GeminiEmbeddingProvider, PlaceholderEmbeddingProvider } from "./embeddings";
+export { PgVectorStore, InMemoryVectorStore } from "./vector-store";
 export { RetrievalService } from "./retrieval";
+export { PdfDocumentParser } from "./parser";
+export { IngestionPipeline } from "./pipeline";
