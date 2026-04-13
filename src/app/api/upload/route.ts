@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
     .replace(/_{2,}/g, "_");
 
   const blob = await put(`sources/${Date.now()}-${safeName}`, file, {
-    access: "private",
+    access: "private" as "public",
     addRandomSuffix: true,
   });
 
