@@ -2,7 +2,8 @@
 // MATCHPOINT — PDF Document Parser
 // ============================================================
 
-import pdfParse from "pdf-parse";
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const pdfParse = require("pdf-parse");
 import type { IDocumentParser, ParsedDocument } from "./types";
 
 export class PdfDocumentParser implements IDocumentParser {
