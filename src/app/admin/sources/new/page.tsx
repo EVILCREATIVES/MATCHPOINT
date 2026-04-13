@@ -57,6 +57,21 @@ export default function NewSourcePage() {
     } catch (err: unknown) {
       setUploadError(err instanceof Error ? err.message : "Upload failed");
     } finally {
+      setUploading(false);
+    }
+  }, []);
+
+  const onFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) handleUpload(file);
+  };
+
+  const onDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setDragOver(false);
+    const file = e.dataTransfer.files[0];
+    if (file) handleUpload(file);
+  }, [handleUpload]);
 
   const handleSubmit = async () => {
     if (!selectedType || !title.trim()) return;
@@ -70,7 +85,6 @@ export default function NewSourcePage() {
         .map((t) => t.trim())
         .filter(Boolean);
 
-      // 1. Create the source in the DB
       const sourceRes = await fetch("/api/sources", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -99,41 +113,21 @@ export default function NewSourcePage() {
 
       const { source } = await sourceRes.json();
 
-      // 2. Trigger ingestion (for PDF type only — others need parsing implementations)
       if (selectedType === "pdf" && uploadedFile) {
         await fetch("/api/ingest", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ sourceId: source.id }),
         });
-        // We don't await the full result — ingestion runs and updates status
       }
 
-      // 3. Navigate to sources list
-      router.push("/admin/sources");value={title} onChange={(e) => setTitle(e.target.value)} />
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Author</label>
-                <Input placeholder="e.g., Coach Mike Trent" value={author} onChange={(e) => setAuthor(e.target.value)} />
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Description</label>
-                <Textarea
-                  placeholder="Brief description of the content…"
-                  rows={3}
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value).files?.[0];
-    if (file) handleUpload(file);
+      router.push("/admin/sources");
+    } catch (err) {
+      setSubmitError(err instanceof Error ? err.message : "Failed to create source");
+    } finally {
+      setSubmitting(false);
+    }
   };
-
-  const onDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    setDragOver(false);
-    const file = e.dataTransfer.files[0];
-    if (file) handleUpload(file);
-  }, [handleUpload]);
 
   return (
     <div className="space-y-6 max-w-3xl">
@@ -142,7 +136,6 @@ export default function NewSourcePage() {
         description="Add a new knowledge source to the MATCHPOINT knowledge base"
       />
 
-      {/* Source Type Selection */}
       {!selectedType && (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {sourceTypes.map((st) => (
@@ -163,7 +156,6 @@ export default function NewSourcePage() {
         </div>
       )}
 
-      {/* Source Form */}
       {selectedType && (
         <div className="space-y-6">
           <div className="flex items-center gap-3">
@@ -187,12 +179,12 @@ export default function NewSourcePage() {
             <CardContent className="space-y-4">
               <div className="space-y-2">
                 <label className="text-sm font-medium">Title *</label>
-                <Input placeholder="e.g., Modern Forehand Biomechanics" />
+                <Input placeholder="e.g., Modern Forehand Biomechanics" value={title} onChange={(e) => setTitle(e.target.value)} />
               </div>
 
               <div className="space-y-2">
                 <label className="text-sm font-medium">Author</label>
-                <Input placeholder="e.g., Coach Mike Trent" />
+                <Input placeholder="e.g., Coach Mike Trent" value={author} onChange={(e) => setAuthor(e.target.value)} />
               </div>
 
               <div className="space-y-2">
@@ -200,6 +192,8 @@ export default function NewSourcePage() {
                 <Textarea
                   placeholder="Brief description of the content…"
                   rows={3}
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
                 />
               </div>
 
@@ -332,7 +326,23 @@ export default function NewSourcePage() {
                   </select>
                 </div>
 
-                <div className="space-y-2">between gap-3">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Trust Level</label>
+                  <select
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                    value={trustLevel}
+                    onChange={(e) => setTrustLevel(e.target.value as TrustLevel)}
+                  >
+                    <option value="unreviewed">Unreviewed</option>
+                    <option value="trusted">Trusted</option>
+                    <option value="untrusted">Untrusted</option>
+                  </select>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <div className="flex items-center justify-between gap-3">
             <div>
               {submitError && (
                 <p className="text-sm text-destructive">{submitError}</p>
@@ -348,23 +358,7 @@ export default function NewSourcePage() {
               >
                 {submitting ? "Creating…" : "Add Source & Start Ingestion"}
               </Button>
-            </div
-                    onChange={(e) => setTrustLevel(e.target.value as TrustLevel)}
-                  >
-                    <option value="unreviewed">Unreviewed</option>
-                    <option value="trusted">Trusted</option>
-                    <option value="untrusted">Untrusted</option>
-                  </select>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <div className="flex items-center justify-end gap-3">
-            <Button variant="outline" onClick={() => setSelectedType(null)}>
-              Cancel
-            </Button>
-            <Button>Add Source & Start Ingestion</Button>
+            </div>
           </div>
         </div>
       )}
