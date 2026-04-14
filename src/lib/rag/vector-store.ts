@@ -67,7 +67,7 @@ export class PgVectorStore implements IVectorStore {
       LIMIT ${topK}
     `);
 
-    return (results.rows as Record<string, unknown>[]).map((row) => ({
+    return (results as unknown as Record<string, unknown>[]).map((row) => ({
       chunkId: row.chunk_id as string,
       content: row.content as string,
       score: row.score as number,
@@ -90,7 +90,7 @@ export class PgVectorStore implements IVectorStore {
     const result = await db.execute(
       sql`SELECT COUNT(*) as cnt FROM source_chunks WHERE embedding IS NOT NULL`
     );
-    return Number((result.rows[0] as Record<string, unknown>).cnt) || 0;
+    return Number((result as unknown as Record<string, unknown>[])[0]?.cnt) || 0;
   }
 }
 
