@@ -31,10 +31,13 @@ async function main() {
     await sql.end({ timeout: 5 });
   }
 
-  console.log("[db:setup] Running drizzle-kit push --force…");
+  console.log("[db:setup] Running drizzle-kit push…");
   try {
-    execSync("npx drizzle-kit push --force", {
-      stdio: "inherit",
+    // Pipe "yes" answers to handle any interactive confirmation prompts
+    // (e.g. data-loss warnings) without hanging the build.
+    execSync("yes | npx drizzle-kit push --force", {
+      stdio: ["ignore", "inherit", "inherit"],
+      shell: "/bin/bash",
       env: process.env,
     });
     console.log("[db:setup] ✓ schema synced");
