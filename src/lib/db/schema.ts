@@ -14,9 +14,9 @@ import {
   jsonb,
   uuid,
   varchar,
-  real,
   pgEnum,
   customType,
+  index,
 } from "drizzle-orm/pg-core";
 
 // ── Custom pgvector type ──
@@ -36,6 +36,14 @@ const vector = customType<{ data: number[]; driverData: string }>({
   },
 });
 
+// ── Custom tsvector type (Postgres full-text search) ──
+
+const tsvector = customType<{ data: string }>({
+  dataType() {
+    return "tsvector";
+  },
+});
+
 // ── Enums ──
 
 export const userRoleEnum = pgEnum("user_role", ["admin", "user"]);
@@ -47,6 +55,7 @@ export const skillLevelEnum = pgEnum("skill_level", ["beginner", "intermediate",
 export const sessionTypeEnum = pgEnum("session_type", ["technical", "footwork", "conditioning", "tactical", "match_prep", "recovery", "drill", "serve_practice"]);
 export const planPeriodEnum = pgEnum("plan_period", ["daily", "weekly"]);
 export const progressStatusEnum = pgEnum("progress_status", ["completed", "skipped", "partial"]);
+export const chunkKindEnum = pgEnum("chunk_kind", ["text", "figure", "table", "heading", "summary"]);
 
 // ── Users ──
 
@@ -109,21 +118,48 @@ export const sources = pgTable("sources", {
   description: text("description"),
   summary: text("summary"),
   chunkCount: integer("chunk_count").notNull().default(0),
+  pageCount: integer("page_count"),
+  language: varchar("language", { length: 16 }),
   errorMessage: text("error_message"),
+  analysisVersion: integer("analysis_version").notNull().default(0),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
 // ── Source Chunks ──
 
-export const sourceChunks = pgTable("source_chunks", {
+export const sourceChunks = pgTable(
+  "source_chunks",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    sourceId: uuid("source_id").notNull().references(() => sources.id),
+    content: text("content").notNull(),
+    contentTsv: tsvector("content_tsv"),
+    chunkIndex: integer("chunk_index").notNull(),
+    tokenCount: integer("token_count").notNull().default(0),
+    kind: chunkKindEnum("kind").notNull().default("text"),
+    pageNumber: integer("page_number"),
+    headingPath: jsonb("heading_path").$type<string[]>().default([]),
+    embeddingId: varchar("embedding_id", { length: 255 }),
+    embedding: vector("embedding"),
+    metadata: jsonb("metadata").$type<Record<string, unknown>>().default({}),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => ({
+    contentTsvIdx: index("source_chunks_content_tsv_idx").using("gin", table.contentTsv),
+    sourceIdx: index("source_chunks_source_idx").on(table.sourceId),
+  })
+);
+
+// ── Source Figures (extracted images / diagrams) ──
+
+export const sourceFigures = pgTable("source_figures", {
   id: uuid("id").primaryKey().defaultRandom(),
   sourceId: uuid("source_id").notNull().references(() => sources.id),
-  content: text("content").notNull(),
-  chunkIndex: integer("chunk_index").notNull(),
-  tokenCount: integer("token_count").notNull().default(0),
-  embeddingId: varchar("embedding_id", { length: 255 }),
-  embedding: vector("embedding"),
+  chunkId: uuid("chunk_id").references(() => sourceChunks.id),
+  pageNumber: integer("page_number"),
+  caption: text("caption").notNull(),
+  description: text("description"),
   metadata: jsonb("metadata").$type<Record<string, unknown>>().default({}),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
@@ -164,6 +200,85 @@ export const tags = pgTable("tags", {
   color: varchar("color", { length: 20 }),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
+
+// ── Structured Tennis Knowledge (extracted by Gemini analyzer) ──
+
+export const techniques = pgTable("techniques", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  sourceId: uuid("source_id").references(() => sources.id),
+  name: varchar("name", { length: 255 }).notNull(),
+  category: varchar("category", { length: 100 }),
+  skillLevel: skillLevelEnum("skill_level"),
+  description: text("description").notNull(),
+  keyPoints: jsonb("key_points").$type<string[]>().default([]),
+  tags: jsonb("tags").$type<string[]>().default([]),
+  metadata: jsonb("metadata").$type<Record<string, unknown>>().default({}),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const commonErrors = pgTable("common_errors", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  sourceId: uuid("source_id").references(() => sources.id),
+  techniqueName: varchar("technique_name", { length: 255 }),
+  errorName: varchar("error_name", { length: 255 }).notNull(),
+  description: text("description").notNull(),
+  cause: text("cause"),
+  fix: text("fix"),
+  skillLevel: skillLevelEnum("skill_level"),
+  tags: jsonb("tags").$type<string[]>().default([]),
+  metadata: jsonb("metadata").$type<Record<string, unknown>>().default({}),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const drills = pgTable("drills", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  sourceId: uuid("source_id").references(() => sources.id),
+  name: varchar("name", { length: 255 }).notNull(),
+  focus: varchar("focus", { length: 100 }),
+  skillLevel: skillLevelEnum("skill_level"),
+  description: text("description").notNull(),
+  setup: text("setup"),
+  instructions: jsonb("instructions").$type<string[]>().default([]),
+  durationMinutes: integer("duration_minutes"),
+  equipment: jsonb("equipment").$type<string[]>().default([]),
+  tags: jsonb("tags").$type<string[]>().default([]),
+  metadata: jsonb("metadata").$type<Record<string, unknown>>().default({}),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const progressions = pgTable("progressions", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  sourceId: uuid("source_id").references(() => sources.id),
+  name: varchar("name", { length: 255 }).notNull(),
+  goal: text("goal").notNull(),
+  skillLevel: skillLevelEnum("skill_level"),
+  steps: jsonb("steps").$type<Array<{ order: number; title: string; description: string }>>().default([]),
+  durationWeeks: integer("duration_weeks"),
+  tags: jsonb("tags").$type<string[]>().default([]),
+  metadata: jsonb("metadata").$type<Record<string, unknown>>().default({}),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// ── Query Cache (RAG response cache) ──
+
+export const queryCache = pgTable(
+  "query_cache",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    queryHash: varchar("query_hash", { length: 64 }).notNull().unique(),
+    queryText: text("query_text").notNull(),
+    filterHash: varchar("filter_hash", { length: 64 }).notNull(),
+    embedding: vector("embedding"),
+    chunkIds: jsonb("chunk_ids").$type<string[]>().default([]),
+    answer: text("answer"),
+    hits: integer("hits").notNull().default(0),
+    expiresAt: timestamp("expires_at"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => ({
+    hashIdx: index("query_cache_hash_idx").on(table.queryHash),
+  })
+);
 
 // ── Training Plans ──
 

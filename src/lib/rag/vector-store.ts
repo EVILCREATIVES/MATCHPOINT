@@ -23,6 +23,15 @@ export class PgVectorStore implements IVectorStore {
         })
         .where(eq(sourceChunks.id, v.id));
     }
+    // populate tsvector for any chunk whose content_tsv is missing
+    const ids = vectors.map((v) => `'${v.id}'`).join(",");
+    if (ids) {
+      await db.execute(sql`
+        UPDATE source_chunks
+        SET content_tsv = to_tsvector('english', coalesce(content, ''))
+        WHERE id IN (${sql.raw(ids)})
+      `);
+    }
   }
 
   async query(
@@ -31,30 +40,15 @@ export class PgVectorStore implements IVectorStore {
     filters?: Record<string, unknown>
   ): Promise<RetrievalResult[]> {
     const vectorStr = `[${vector.join(",")}]`;
-
-    // Build filter conditions
-    let filterCondition = sql`sc.embedding IS NOT NULL`;
-
-    if (filters?.sourceIds && Array.isArray(filters.sourceIds) && filters.sourceIds.length > 0) {
-      const ids = filters.sourceIds.map((id: string) => `'${id}'`).join(",");
-      filterCondition = sql`${filterCondition} AND sc.source_id IN (${sql.raw(ids)})`;
-    }
-
-    if (filters?.skillLevels && Array.isArray(filters.skillLevels) && filters.skillLevels.length > 0) {
-      const levels = filters.skillLevels.map((l: string) => `'${l}'`).join(",");
-      filterCondition = sql`${filterCondition} AND s.skill_level IN (${sql.raw(levels)})`;
-    }
-
-    if (filters?.trustLevels && Array.isArray(filters.trustLevels) && filters.trustLevels.length > 0) {
-      const levels = filters.trustLevels.map((l: string) => `'${l}'`).join(",");
-      filterCondition = sql`${filterCondition} AND s.trust_level IN (${sql.raw(levels)})`;
-    }
+    const filterCondition = buildFilterCondition(filters, sql`sc.embedding IS NOT NULL`);
 
     const results = await db.execute(sql`
       SELECT
         sc.id as chunk_id,
         sc.content,
         sc.source_id,
+        sc.page_number,
+        sc.kind,
         s.title as source_title,
         sc.metadata,
         1 - (sc.embedding <=> ${sql.raw(`'${vectorStr}'`)}::vector) as score
@@ -67,14 +61,37 @@ export class PgVectorStore implements IVectorStore {
       LIMIT ${topK}
     `);
 
-    return (results as unknown as Record<string, unknown>[]).map((row) => ({
-      chunkId: row.chunk_id as string,
-      content: row.content as string,
-      score: row.score as number,
-      sourceId: row.source_id as string,
-      sourceTitle: row.source_title as string,
-      metadata: (row.metadata as Record<string, unknown>) || {},
-    }));
+    return mapRows(results);
+  }
+
+  async keywordQuery(
+    text: string,
+    topK: number,
+    filters?: Record<string, unknown>
+  ): Promise<RetrievalResult[]> {
+    const filterCondition = buildFilterCondition(filters, sql`sc.content_tsv IS NOT NULL`);
+
+    const results = await db.execute(sql`
+      SELECT
+        sc.id as chunk_id,
+        sc.content,
+        sc.source_id,
+        sc.page_number,
+        sc.kind,
+        s.title as source_title,
+        sc.metadata,
+        ts_rank_cd(sc.content_tsv, plainto_tsquery('english', ${text})) as score
+      FROM source_chunks sc
+      JOIN sources s ON s.id = sc.source_id
+      WHERE ${filterCondition}
+        AND s.status = 'active'
+        AND s.ingestion_state = 'completed'
+        AND sc.content_tsv @@ plainto_tsquery('english', ${text})
+      ORDER BY score DESC
+      LIMIT ${topK}
+    `);
+
+    return mapRows(results);
   }
 
   async delete(ids: string[]): Promise<void> {
@@ -92,6 +109,49 @@ export class PgVectorStore implements IVectorStore {
     );
     return Number((result as unknown as Record<string, unknown>[])[0]?.cnt) || 0;
   }
+}
+
+function buildFilterCondition(
+  filters: Record<string, unknown> | undefined,
+  base: ReturnType<typeof sql>
+) {
+  let cond = base;
+  if (!filters) return cond;
+
+  if (Array.isArray(filters.sourceIds) && filters.sourceIds.length > 0) {
+    const ids = (filters.sourceIds as string[]).map((id) => `'${id}'`).join(",");
+    cond = sql`${cond} AND sc.source_id IN (${sql.raw(ids)})`;
+  }
+  if (Array.isArray(filters.skillLevels) && filters.skillLevels.length > 0) {
+    const levels = (filters.skillLevels as string[]).map((l) => `'${l}'`).join(",");
+    cond = sql`${cond} AND s.skill_level IN (${sql.raw(levels)})`;
+  }
+  if (Array.isArray(filters.trustLevels) && filters.trustLevels.length > 0) {
+    const levels = (filters.trustLevels as string[]).map((l) => `'${l}'`).join(",");
+    cond = sql`${cond} AND s.trust_level IN (${sql.raw(levels)})`;
+  }
+  if (Array.isArray(filters.categoryIds) && filters.categoryIds.length > 0) {
+    const ids = (filters.categoryIds as string[]).map((id) => `'${id}'`).join(",");
+    cond = sql`${cond} AND s.category_id IN (${sql.raw(ids)})`;
+  }
+  if (Array.isArray(filters.kinds) && filters.kinds.length > 0) {
+    const kinds = (filters.kinds as string[]).map((k) => `'${k}'`).join(",");
+    cond = sql`${cond} AND sc.kind IN (${sql.raw(kinds)})`;
+  }
+  return cond;
+}
+
+function mapRows(results: unknown): RetrievalResult[] {
+  return (results as unknown as Record<string, unknown>[]).map((row) => ({
+    chunkId: row.chunk_id as string,
+    content: row.content as string,
+    score: Number(row.score) || 0,
+    sourceId: row.source_id as string,
+    sourceTitle: row.source_title as string,
+    metadata: (row.metadata as Record<string, unknown>) || {},
+    pageNumber: row.page_number as number | undefined,
+    kind: row.kind as string | undefined,
+  }));
 }
 
 // Keep InMemoryVectorStore for testing/development
@@ -116,6 +176,30 @@ export class InMemoryVectorStore implements IVectorStore {
     }
     results.sort((a, b) => b.score - a.score);
     return results.slice(0, topK).map((r) => ({
+      chunkId: r.id,
+      content: (r.vec.metadata.content as string) || "",
+      score: r.score,
+      sourceId: (r.vec.metadata.sourceId as string) || "",
+      sourceTitle: (r.vec.metadata.sourceTitle as string) || "",
+      metadata: r.vec.metadata,
+    }));
+  }
+
+  async keywordQuery(
+    text: string,
+    topK: number,
+    _filters?: Record<string, unknown>
+  ): Promise<RetrievalResult[]> {
+    const terms = text.toLowerCase().split(/\s+/).filter(Boolean);
+    const scored: { id: string; score: number; vec: EmbeddingVector }[] = [];
+    for (const [id, stored] of this.vectors) {
+      const content = String(stored.metadata.content || "").toLowerCase();
+      let score = 0;
+      for (const t of terms) if (content.includes(t)) score += 1;
+      if (score > 0) scored.push({ id, score, vec: stored });
+    }
+    scored.sort((a, b) => b.score - a.score);
+    return scored.slice(0, topK).map((r) => ({
       chunkId: r.id,
       content: (r.vec.metadata.content as string) || "",
       score: r.score,

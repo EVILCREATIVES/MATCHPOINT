@@ -1,5 +1,9 @@
 import { put } from "@vercel/blob";
 import { NextRequest, NextResponse } from "next/server";
+import { db } from "@/lib/db";
+import { sources } from "@/lib/db/schema";
+
+export const maxDuration = 60;
 
 const MAX_SIZE_MB = parseInt(process.env.UPLOAD_MAX_SIZE_MB || "50", 10);
 const MAX_SIZE_BYTES = MAX_SIZE_MB * 1024 * 1024;
@@ -32,15 +36,50 @@ export async function POST(request: NextRequest) {
     .replace(/[^a-zA-Z0-9._-]/g, "_")
     .replace(/_{2,}/g, "_");
 
+  // 1. Store the PDF privately in Vercel Blob
   const blob = await put(`sources/${Date.now()}-${safeName}`, file, {
     access: "private",
     addRandomSuffix: true,
   });
+
+  // 2. Auto-create the source row (title/author/etc. will be auto-filled by ingestion)
+  const placeholderTitle = file.name.replace(/\.pdf$/i, "").trim() || safeName;
+  const [source] = await db
+    .insert(sources)
+    .values({
+      title: placeholderTitle,
+      sourceType: "pdf",
+      sourceUrl: blob.url,
+      filePath: blob.pathname,
+      fileSize: file.size,
+      ingestionState: "pending",
+      visibility: "private",
+      trustLevel: "unreviewed",
+    })
+    .returning();
+
+  // 3. Kick off ingestion in the background — don't block the upload response
+  void triggerIngestion(request, source.id);
 
   return NextResponse.json({
     url: blob.url,
     pathname: blob.pathname,
     size: file.size,
     filename: file.name,
+    sourceId: source.id,
+    ingestionState: source.ingestionState,
   });
+}
+
+async function triggerIngestion(request: NextRequest, sourceId: string) {
+  try {
+    const origin = new URL(request.url).origin;
+    await fetch(`${origin}/api/ingest`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sourceId }),
+    });
+  } catch (error) {
+    console.error("Failed to trigger ingestion for", sourceId, error);
+  }
 }

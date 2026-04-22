@@ -21,7 +21,7 @@ const sourceTypes: { type: SourceType; label: string; icon: string; description:
 export default function NewSourcePage() {
   const router = useRouter();
   const [selectedType, setSelectedType] = useState<SourceType | null>(null);
-  const [uploadedFile, setUploadedFile] = useState<{ url: string; filename: string; size: number } | null>(null);
+  const [uploadedFile, setUploadedFile] = useState<{ url: string; filename: string; size: number; sourceId?: string } | null>(null);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState(false);
@@ -53,7 +53,7 @@ export default function NewSourcePage() {
         throw new Error(data.error || "Upload failed");
       }
       const data = await res.json();
-      setUploadedFile({ url: data.url, filename: data.filename, size: data.size });
+      setUploadedFile({ url: data.url, filename: data.filename, size: data.size, sourceId: data.sourceId });
     } catch (err: unknown) {
       setUploadError(err instanceof Error ? err.message : "Upload failed");
     } finally {
@@ -74,7 +74,20 @@ export default function NewSourcePage() {
   }, [handleUpload]);
 
   const handleSubmit = async () => {
-    if (!selectedType || !title.trim()) return;
+    if (!selectedType) return;
+
+    // PDFs are now fully auto-ingested by /api/upload (source row + ingestion
+    // are kicked off server-side). Just navigate back to the sources list.
+    if (selectedType === "pdf") {
+      if (!uploadedFile?.sourceId) {
+        setSubmitError("Upload a PDF before continuing");
+        return;
+      }
+      router.push("/admin/sources");
+      return;
+    }
+
+    if (!title.trim()) return;
 
     setSubmitting(true);
     setSubmitError(null);
@@ -93,11 +106,10 @@ export default function NewSourcePage() {
           sourceType: selectedType,
           author: author.trim() || undefined,
           description: description.trim() || undefined,
-          sourceUrl: selectedType === "pdf" ? uploadedFile?.url
-            : selectedType === "website" ? websiteUrl.trim()
+          sourceUrl:
+            selectedType === "website" ? websiteUrl.trim()
             : selectedType === "youtube" ? youtubeUrl.trim()
             : undefined,
-          fileSize: uploadedFile?.size,
           skillLevel: skillLevel || undefined,
           tags,
           visibility,
@@ -109,16 +121,6 @@ export default function NewSourcePage() {
       if (!sourceRes.ok) {
         const data = await sourceRes.json();
         throw new Error(data.error || "Failed to create source");
-      }
-
-      const { source } = await sourceRes.json();
-
-      if (selectedType === "pdf" && uploadedFile) {
-        await fetch("/api/ingest", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ sourceId: source.id }),
-        });
       }
 
       router.push("/admin/sources");

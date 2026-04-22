@@ -1,27 +1,39 @@
 import { NextRequest, NextResponse } from "next/server";
-import { IngestionPipeline } from "@/lib/rag/pipeline";
-import { PdfDocumentParser } from "@/lib/rag/parser";
-import { SimpleTextChunker } from "@/lib/rag/chunker";
-import { GeminiEmbeddingProvider } from "@/lib/rag/embeddings";
-import { PgVectorStore } from "@/lib/rag/vector-store";
+import {
+  IngestionPipeline,
+  PdfDocumentParser,
+  SimpleTextChunker,
+  GeminiEmbeddingProvider,
+  PgVectorStore,
+  GeminiDocumentAnalyzer,
+  QueryCache,
+} from "@/lib/rag";
 import { z } from "zod";
+
+export const maxDuration = 300;
 
 const ingestSchema = z.object({
   sourceId: z.string().uuid(),
   reprocess: z.boolean().optional(),
 });
 
+function buildPipeline() {
+  return new IngestionPipeline(
+    new PdfDocumentParser(),
+    new SimpleTextChunker(),
+    new GeminiEmbeddingProvider(),
+    new PgVectorStore(),
+    new GeminiDocumentAnalyzer(),
+    new QueryCache()
+  );
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const { sourceId, reprocess } = ingestSchema.parse(body);
 
-    const pipeline = new IngestionPipeline(
-      new PdfDocumentParser(),
-      new SimpleTextChunker(),
-      new GeminiEmbeddingProvider(),
-      new PgVectorStore()
-    );
+    const pipeline = buildPipeline();
 
     const result = reprocess
       ? await pipeline.reprocess(sourceId)
