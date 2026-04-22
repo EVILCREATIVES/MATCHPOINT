@@ -131,7 +131,16 @@ export interface IDocumentParser {
 }
 
 export interface ITextChunker {
-  chunk(text: string, options?: { chunkSize?: number; overlap?: number }): TextChunk[];
+  chunk(
+    text: string,
+    options?: {
+      chunkSize?: number;
+      overlap?: number;
+      targetTokens?: number;
+      maxTokens?: number;
+      pages?: ParsedPage[];
+    }
+  ): TextChunk[];
 }
 
 export interface IEmbeddingProvider {
