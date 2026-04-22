@@ -175,29 +175,39 @@ export default function NewSourcePage() {
 
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Source Details</CardTitle>
-              <CardDescription>Provide information about this knowledge source</CardDescription>
+              <CardTitle className="text-base">
+                {selectedType === "pdf" ? "Upload PDF" : "Source Details"}
+              </CardTitle>
+              <CardDescription>
+                {selectedType === "pdf"
+                  ? "Drop a PDF — title, author, summary, tags, skill level and structured tennis knowledge will be extracted automatically by the AI ingestion pipeline."
+                  : "Provide information about this knowledge source"}
+              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Title *</label>
-                <Input placeholder="e.g., Modern Forehand Biomechanics" value={title} onChange={(e) => setTitle(e.target.value)} />
-              </div>
+              {selectedType !== "pdf" && (
+                <>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Title *</label>
+                    <Input placeholder="e.g., Modern Forehand Biomechanics" value={title} onChange={(e) => setTitle(e.target.value)} />
+                  </div>
 
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Author</label>
-                <Input placeholder="e.g., Coach Mike Trent" value={author} onChange={(e) => setAuthor(e.target.value)} />
-              </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Author</label>
+                    <Input placeholder="e.g., Coach Mike Trent" value={author} onChange={(e) => setAuthor(e.target.value)} />
+                  </div>
 
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Description</label>
-                <Textarea
-                  placeholder="Brief description of the content…"
-                  rows={3}
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                />
-              </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Description</label>
+                    <Textarea
+                      placeholder="Brief description of the content…"
+                      rows={3}
+                      value={description}
+                      onChange={(e) => setDescription(e.target.value)}
+                    />
+                  </div>
+                </>
+              )}
 
               {selectedType === "pdf" && (
                 <div className="space-y-2">
@@ -277,9 +287,10 @@ export default function NewSourcePage() {
                 </div>
               )}
 
-              <Separator />
+              {selectedType !== "pdf" && <Separator />}
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {selectedType !== "pdf" && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <label className="text-sm font-medium">Category</label>
                   <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
@@ -301,21 +312,25 @@ export default function NewSourcePage() {
                     <option value="elite">Elite</option>
                   </select>
                 </div>
-              </div>
+                </div>
+              )}
 
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Tags</label>
-                <Input
-                  placeholder="Enter tags separated by commas…"
-                  value={tagsInput}
-                  onChange={(e) => setTagsInput(e.target.value)}
-                />
-                <p className="text-xs text-muted-foreground">
-                  e.g., forehand, technique, biomechanics
-                </p>
-              </div>
+              {selectedType !== "pdf" && (
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Tags</label>
+                  <Input
+                    placeholder="Enter tags separated by commas…"
+                    value={tagsInput}
+                    onChange={(e) => setTagsInput(e.target.value)}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    e.g., forehand, technique, biomechanics
+                  </p>
+                </div>
+              )}
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {selectedType !== "pdf" && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <label className="text-sm font-medium">Visibility</label>
                   <select
@@ -340,7 +355,8 @@ export default function NewSourcePage() {
                     <option value="untrusted">Untrusted</option>
                   </select>
                 </div>
-              </div>
+                </div>
+              )}
             </CardContent>
           </Card>
 
@@ -356,9 +372,18 @@ export default function NewSourcePage() {
               </Button>
               <Button
                 onClick={handleSubmit}
-                disabled={submitting || !title.trim() || (selectedType === "pdf" && !uploadedFile)}
+                disabled={
+                  submitting ||
+                  (selectedType === "pdf"
+                    ? !uploadedFile?.sourceId || uploading
+                    : !title.trim())
+                }
               >
-                {submitting ? "Creating…" : "Add Source & Start Ingestion"}
+                {submitting
+                  ? "Creating…"
+                  : selectedType === "pdf"
+                  ? "Done — view sources"
+                  : "Add Source & Start Ingestion"}
               </Button>
             </div>
           </div>
