@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { DeleteSourceButton } from "@/components/admin/delete-source-button";
 import { db } from "@/lib/db";
 import { sources } from "@/lib/db/schema";
 
@@ -111,6 +112,9 @@ export default async function SourcesListPage() {
                       {s.errorMessage}
                     </p>
                   )}
+                </div>
+                <div className="shrink-0">
+                  <DeleteSourceButton sourceId={s.id} sourceTitle={s.title} />
                 </div>
               </CardContent>
             </Card>
