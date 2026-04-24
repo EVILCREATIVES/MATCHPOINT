@@ -1,15 +1,16 @@
 // ============================================================
 // MATCHPOINT — Gemini Embedding Provider
 // ============================================================
-// Uses Google AI text-embedding-004 model to generate real
-// embedding vectors for RAG retrieval.
+// Uses Google AI gemini-embedding-001 (the current model; the older
+// text-embedding-004 was retired). Explicitly requests 768 dims so the
+// output matches our pgvector(768) column.
 // ============================================================
 
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import type { IEmbeddingProvider } from "./types";
 
 export class GeminiEmbeddingProvider implements IEmbeddingProvider {
-  private readonly model = "text-embedding-004";
+  private readonly model = "gemini-embedding-001";
   private readonly dims = 768;
   private genAI: GoogleGenerativeAI;
 
@@ -21,26 +22,29 @@ export class GeminiEmbeddingProvider implements IEmbeddingProvider {
     this.genAI = new GoogleGenerativeAI(apiKey);
   }
 
-  async embed(text: string): Promise<number[]> {
+  private async embedOne(text: string): Promise<number[]> {
     const model = this.genAI.getGenerativeModel({ model: this.model });
-    const result = await model.embedContent(text);
+    // Cast: outputDimensionality is supported by the API but missing from
+    // some versions of the SDK's type defs.
+    const result = await model.embedContent({
+      content: { role: "user", parts: [{ text }] },
+      outputDimensionality: this.dims,
+    } as Parameters<typeof model.embedContent>[0]);
     return result.embedding.values;
   }
 
+  async embed(text: string): Promise<number[]> {
+    return this.embedOne(text);
+  }
+
   async embedBatch(texts: string[]): Promise<number[][]> {
-    const model = this.genAI.getGenerativeModel({ model: this.model });
     const results: number[][] = [];
 
     // Process in batches of 100 (API limit)
     const batchSize = 100;
     for (let i = 0; i < texts.length; i += batchSize) {
       const batch = texts.slice(i, i + batchSize);
-      const batchResults = await Promise.all(
-        batch.map(async (text) => {
-          const result = await model.embedContent(text);
-          return result.embedding.values;
-        })
-      );
+      const batchResults = await Promise.all(batch.map((text) => this.embedOne(text)));
       results.push(...batchResults);
     }
 
@@ -58,7 +62,7 @@ export class GeminiEmbeddingProvider implements IEmbeddingProvider {
 
 // Keep placeholder for local development without API key
 export class PlaceholderEmbeddingProvider implements IEmbeddingProvider {
-  private readonly model = "text-embedding-004";
+  private readonly model = "gemini-embedding-001";
   private readonly dims = 768;
 
   async embed(text: string): Promise<number[]> {
