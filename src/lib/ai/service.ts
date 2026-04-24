@@ -29,7 +29,7 @@ export class GeminiAIService implements AIService {
 
   constructor() {
     this.apiKey = process.env.GEMINI_API || "";
-    this.model = "gemini-2.5-flash-preview-04-17";
+    this.model = "gemini-3-flash-preview";
     this.genAI = this.apiKey ? new GoogleGenerativeAI(this.apiKey) : null;
   }
 

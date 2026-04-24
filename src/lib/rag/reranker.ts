@@ -9,7 +9,7 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 import type { IReranker, RetrievalResult } from "./types";
 
 export class GeminiReranker implements IReranker {
-  private readonly model = "gemini-2.5-flash-preview-04-17";
+  private readonly model = "gemini-3-flash-preview";
   private genAI: GoogleGenerativeAI;
 
   constructor() {
