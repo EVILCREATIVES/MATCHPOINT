@@ -38,6 +38,28 @@ interface PipelineOptions {
   analyze?: boolean; // run pass 2 (default true)
 }
 
+// Postgres TEXT/JSONB columns reject NUL bytes (0x00) and other invalid
+// UTF-8 sequences. PDFs frequently contain stray NULs in extracted text.
+// Strip NULs and non-printable C0 controls (except \t \n \r) from any string,
+// recursively for objects/arrays so JSONB inserts also stay clean.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function sanitizeForPg<T = any>(value: T): T {
+  if (typeof value === "string") {
+    return value.replace(/\u0000/g, "").replace(/[\x01-\x08\x0B\x0C\x0E-\x1F]/g, "") as unknown as T;
+  }
+  if (Array.isArray(value)) {
+    return value.map((v) => sanitizeForPg(v)) as unknown as T;
+  }
+  if (value && typeof value === "object") {
+    const out: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+      out[k] = sanitizeForPg(v);
+    }
+    return out as unknown as T;
+  }
+  return value;
+}
+
 export class IngestionPipeline implements IIngestionPipeline {
   constructor(
     private parser: IDocumentParser,
@@ -82,7 +104,7 @@ export class IngestionPipeline implements IIngestionPipeline {
       const mimeType = source.sourceType === "pdf" ? "application/pdf" : "text/plain";
 
       // Pass 1 — text path (parse + chunk + embed + store)
-      const parsed = await this.parser.parse(buffer, mimeType);
+      const parsed = sanitizeForPg(await this.parser.parse(buffer, mimeType));
       const textChunks = this.chunker.chunk(parsed.content, { pages: parsed.pages });
 
       if (textChunks.length === 0) {
@@ -111,7 +133,9 @@ export class IngestionPipeline implements IIngestionPipeline {
 
       // Pass 2 — structured analysis (parallel with embedding)
       const analysisPromise: Promise<DocumentAnalysis | null> = runAnalysis
-        ? this.analyzer!.analyze({ buffer, mimeType, filename: source.title }).catch((err) => {
+        ? this.analyzer!.analyze({ buffer, mimeType, filename: source.title })
+            .then((a) => (a ? sanitizeForPg(a) : a))
+            .catch((err) => {
             console.warn("Analyzer failed, continuing without structured data:", err);
             return null;
           })
