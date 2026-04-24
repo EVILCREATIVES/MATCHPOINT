@@ -10,7 +10,6 @@
 // ============================================================
 
 import { eq, sql } from "drizzle-orm";
-import { getDownloadUrl } from "@vercel/blob";
 import { db } from "@/lib/db";
 import {
   sources,
@@ -72,11 +71,12 @@ export class IngestionPipeline implements IIngestionPipeline {
       if (!source) throw new Error(`Source not found: ${sourceId}`);
       if (!source.sourceUrl) throw new Error(`Source has no URL: ${sourceId}`);
 
-      // Download
-      const downloadUrl = await getDownloadUrl(source.sourceUrl);
-      const response = await fetch(downloadUrl);
+      // Download from Vercel Blob (public URL with unguessable suffix)
+      const response = await fetch(source.sourceUrl);
       if (!response.ok) {
-        throw new Error(`Failed to download file: ${response.status} ${response.statusText}`);
+        throw new Error(
+          `Failed to download file from ${source.sourceUrl}: ${response.status} ${response.statusText}`
+        );
       }
       const buffer = Buffer.from(await response.arrayBuffer());
       const mimeType = source.sourceType === "pdf" ? "application/pdf" : "text/plain";

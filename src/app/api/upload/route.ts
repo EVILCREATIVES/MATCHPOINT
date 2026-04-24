@@ -36,10 +36,13 @@ export async function POST(request: NextRequest) {
     .replace(/[^a-zA-Z0-9._-]/g, "_")
     .replace(/_{2,}/g, "_");
 
-  // 1. Store the PDF privately in Vercel Blob
+  // 1. Store the PDF in Vercel Blob.
+  // Note: @vercel/blob v2 only supports `access: "public"`. URLs contain an
+  // unguessable random suffix, which is the standard Vercel Blob pattern.
   const blob = await put(`sources/${Date.now()}-${safeName}`, file, {
-    access: "private",
+    access: "public",
     addRandomSuffix: true,
+    contentType: file.type,
   });
 
   // 2. Auto-create the source row (title/author/etc. will be auto-filled by ingestion)
