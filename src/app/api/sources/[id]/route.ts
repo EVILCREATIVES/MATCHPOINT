@@ -32,15 +32,15 @@ export async function DELETE(_request: NextRequest, { params }: RouteContext) {
     }
 
     // Delete child rows first (no ON DELETE CASCADE on these FKs).
-    // Order matters only for NOT NULL FKs (source_chunks, ingestion_jobs).
+    // We delete rather than null so we don't leave orphaned structured
+    // knowledge — it's regenerable by re-ingesting the source anyway.
+    await db.delete(sourceFigures).where(eq(sourceFigures.sourceId, id));
     await db.delete(sourceChunks).where(eq(sourceChunks.sourceId, id));
     await db.delete(ingestionJobs).where(eq(ingestionJobs.sourceId, id));
-    // Nullable FKs — null them out so we don't lose unrelated data
-    await db.update(sourceFigures).set({ sourceId: null }).where(eq(sourceFigures.sourceId, id));
-    await db.update(techniques).set({ sourceId: null }).where(eq(techniques.sourceId, id));
-    await db.update(commonErrors).set({ sourceId: null }).where(eq(commonErrors.sourceId, id));
-    await db.update(drills).set({ sourceId: null }).where(eq(drills.sourceId, id));
-    await db.update(progressions).set({ sourceId: null }).where(eq(progressions.sourceId, id));
+    await db.delete(techniques).where(eq(techniques.sourceId, id));
+    await db.delete(commonErrors).where(eq(commonErrors.sourceId, id));
+    await db.delete(drills).where(eq(drills.sourceId, id));
+    await db.delete(progressions).where(eq(progressions.sourceId, id));
 
     // Best-effort: remove the underlying blob (PDF). Don't fail the
     // delete if the blob is already gone.
