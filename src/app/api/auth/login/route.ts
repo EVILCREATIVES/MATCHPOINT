@@ -5,6 +5,7 @@ import bcrypt from "bcryptjs";
 import { db } from "@/lib/db";
 import { users, userProfiles } from "@/lib/db/schema";
 import { setSession } from "@/lib/session";
+import { clientIp, rateLimit, rateLimitResponse } from "@/lib/rate-limit";
 
 const loginSchema = z.object({
   email: z.string().email().max(255),
@@ -16,6 +17,15 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const data = loginSchema.parse(body);
     const email = data.email.toLowerCase().trim();
+
+    // 5 attempts / minute per (IP + email) — slows credential stuffing.
+    const rl = rateLimit({
+      bucket: "auth:login",
+      key: `${clientIp(request)}|${email}`,
+      limit: 5,
+      windowMs: 60_000,
+    });
+    if (!rl.ok) return rateLimitResponse(rl);
 
     const [user] = await db
       .select({

@@ -5,6 +5,7 @@ import bcrypt from "bcryptjs";
 import { db } from "@/lib/db";
 import { users } from "@/lib/db/schema";
 import { setSession } from "@/lib/session";
+import { clientIp, rateLimit, rateLimitResponse } from "@/lib/rate-limit";
 
 const signupSchema = z.object({
   name: z.string().min(1).max(255),
@@ -14,6 +15,15 @@ const signupSchema = z.object({
 
 export async function POST(request: NextRequest) {
   try {
+    // 5 signups / hour per IP — blocks scripted account farming.
+    const rl = rateLimit({
+      bucket: "auth:signup",
+      key: clientIp(request),
+      limit: 5,
+      windowMs: 60 * 60_000,
+    });
+    if (!rl.ok) return rateLimitResponse(rl);
+
     const body = await request.json();
     const data = signupSchema.parse(body);
     const email = data.email.toLowerCase().trim();

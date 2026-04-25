@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { sources } from "@/lib/db/schema";
 import { requireAdmin } from "@/lib/auth";
+import { rateLimit, rateLimitResponse } from "@/lib/rate-limit";
 
 export const maxDuration = 60;
 
@@ -12,7 +13,17 @@ const MAX_SIZE_BYTES = MAX_SIZE_MB * 1024 * 1024;
 const ALLOWED_TYPES = ["application/pdf"];
 
 export async function POST(request: NextRequest) {
-  await requireAdmin();
+  const admin = await requireAdmin();
+
+  // 10 uploads / minute per admin — protects blob quota & ingestion budget.
+  const rl = rateLimit({
+    bucket: "upload:pdf",
+    key: admin.id,
+    limit: 10,
+    windowMs: 60_000,
+  });
+  if (!rl.ok) return rateLimitResponse(rl);
+
   const formData = await request.formData();
   const file = formData.get("file") as File | null;
 
