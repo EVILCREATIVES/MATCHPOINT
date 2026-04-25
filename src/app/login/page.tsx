@@ -104,6 +104,17 @@ export default function LoginPage() {
                   ? isSignUp ? "Creating…" : "Signing in…"
                   : isSignUp ? "Create Account" : "Sign In"}
               </Button>
+
+              {!isSignUp && (
+                <p className="text-center text-xs">
+                  <a
+                    href="/forgot-password"
+                    className="text-muted-foreground hover:text-primary hover:underline"
+                  >
+                    Forgot your password?
+                  </a>
+                </p>
+              )}
             </form>
 
             <Separator />

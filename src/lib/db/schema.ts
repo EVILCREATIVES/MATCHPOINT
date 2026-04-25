@@ -373,3 +373,56 @@ export const systemSettings = pgTable("system_settings", {
   description: text("description"),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
+
+// ── Video Analyses ──
+
+export const videoAnalysisStatusEnum = pgEnum("video_analysis_status", [
+  "pending",
+  "processing",
+  "completed",
+  "failed",
+]);
+
+export const videoAnalyses = pgTable(
+  "video_analyses",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id").notNull().references(() => users.id),
+    fileName: varchar("file_name", { length: 500 }).notNull(),
+    fileSize: integer("file_size").notNull(),
+    mimeType: varchar("mime_type", { length: 100 }).notNull(),
+    blobUrl: text("blob_url").notNull(),
+    blobPath: text("blob_path").notNull(),
+    strokeType: varchar("stroke_type", { length: 50 }).notNull(),
+    notes: text("notes"),
+    status: videoAnalysisStatusEnum("status").notNull().default("pending"),
+    feedback: text("feedback"),
+    rubricScores: jsonb("rubric_scores").$type<Record<string, number>>().default({}),
+    keyTakeaways: jsonb("key_takeaways").$type<string[]>().default([]),
+    drillSuggestions: jsonb("drill_suggestions").$type<string[]>().default([]),
+    errorMessage: text("error_message"),
+    completedAt: timestamp("completed_at"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => ({
+    userIdx: index("video_analyses_user_idx").on(table.userId),
+  })
+);
+
+// ── Password Reset Tokens ──
+
+export const passwordResetTokens = pgTable(
+  "password_reset_tokens",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id").notNull().references(() => users.id),
+    tokenHash: varchar("token_hash", { length: 64 }).notNull().unique(),
+    expiresAt: timestamp("expires_at").notNull(),
+    usedAt: timestamp("used_at"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => ({
+    tokenIdx: index("password_reset_tokens_token_idx").on(table.tokenHash),
+    userIdx: index("password_reset_tokens_user_idx").on(table.userId),
+  })
+);
