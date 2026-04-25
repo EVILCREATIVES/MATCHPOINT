@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { Logo } from "@/components/shared/logo";
-import { Separator } from "@/components/ui/separator";
+import { LogoutButton } from "@/components/shared/logout-button";
 
 const adminNav = [
   { label: "Dashboard", href: "/admin", icon: "◈" },
@@ -15,8 +15,19 @@ const adminNav = [
   { label: "Settings", href: "/admin/settings", icon: "⚙" },
 ];
 
-export function AdminSidebar() {
+export interface AdminSidebarProps {
+  user: { name: string; email: string };
+}
+
+export function AdminSidebar({ user }: AdminSidebarProps) {
   const pathname = usePathname();
+  const initials = user.name
+    .split(" ")
+    .map((p) => p[0])
+    .filter(Boolean)
+    .slice(0, 2)
+    .join("")
+    .toUpperCase() || "A";
 
   return (
     <aside className="hidden md:flex md:w-64 md:flex-col md:fixed md:inset-y-0 border-r bg-card">
@@ -49,16 +60,24 @@ export function AdminSidebar() {
           );
         })}
       </nav>
-      <div className="px-6 py-4 border-t">
+      <div className="px-6 py-4 border-t space-y-3">
+        <Link
+          href="/dashboard"
+          className="flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
+        >
+          <span className="text-base">↩</span>
+          Back to app
+        </Link>
         <div className="flex items-center gap-3">
           <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-xs font-bold text-primary">
-            AR
+            {initials}
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium truncate">Alex Rivera</p>
-            <p className="text-xs text-muted-foreground truncate">Admin</p>
+            <p className="text-sm font-medium truncate">{user.name}</p>
+            <p className="text-xs text-muted-foreground truncate">{user.email}</p>
           </div>
         </div>
+        <LogoutButton />
       </div>
     </aside>
   );

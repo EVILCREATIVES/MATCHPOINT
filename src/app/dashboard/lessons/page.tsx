@@ -5,6 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { db } from "@/lib/db";
 import { techniques, drills, commonErrors, sources } from "@/lib/db/schema";
+import { KnowledgeSearch } from "@/components/lessons/knowledge-search";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -75,6 +76,8 @@ export default async function LessonsPage({
         title="Lessons"
         description={`${filtered.length} lesson${filtered.length === 1 ? "" : "s"} from your knowledge base`}
       />
+
+      <KnowledgeSearch />
 
       <form className="flex flex-wrap items-center gap-2">
         <input

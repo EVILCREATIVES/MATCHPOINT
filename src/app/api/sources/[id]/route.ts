@@ -12,12 +12,14 @@ import {
   drills,
   progressions,
 } from "@/lib/db/schema";
+import { requireAdmin } from "@/lib/auth";
 
 interface RouteContext {
   params: Promise<{ id: string }>;
 }
 
 export async function DELETE(_request: NextRequest, { params }: RouteContext) {
+  await requireAdmin();
   const { id } = await params;
 
   try {

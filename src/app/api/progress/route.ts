@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { progressLogs } from "@/lib/db/schema";
-import { getCurrentUser } from "@/lib/auth";
+import { requireUser } from "@/lib/auth";
 
 const logSchema = z.object({
   sessionId: z.string().uuid().optional(),
@@ -17,7 +17,7 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const data = logSchema.parse(body);
-    const user = await getCurrentUser();
+    const user = await requireUser();
 
     const [log] = await db
       .insert(progressLogs)

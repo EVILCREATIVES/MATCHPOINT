@@ -9,6 +9,7 @@ import {
   QueryCache,
 } from "@/lib/rag";
 import { z } from "zod";
+import { requireAdmin } from "@/lib/auth";
 
 export const maxDuration = 300;
 
@@ -30,6 +31,7 @@ function buildPipeline() {
 
 export async function POST(request: NextRequest) {
   try {
+    await requireAdmin();
     const body = await request.json();
     const { sourceId, reprocess } = ingestSchema.parse(body);
 

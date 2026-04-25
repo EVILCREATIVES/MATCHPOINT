@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { Logo } from "@/components/shared/logo";
+import { LogoutButton } from "@/components/shared/logout-button";
 
 const userNav = [
   { label: "Dashboard", href: "/dashboard", icon: "◈" },
@@ -13,8 +14,19 @@ const userNav = [
   { label: "Profile", href: "/dashboard/profile", icon: "⚙" },
 ];
 
-export function UserSidebar() {
+export interface UserSidebarProps {
+  user: { name: string; email: string; role: "admin" | "user" };
+}
+
+export function UserSidebar({ user }: UserSidebarProps) {
   const pathname = usePathname();
+  const initials = user.name
+    .split(" ")
+    .map((p) => p[0])
+    .filter(Boolean)
+    .slice(0, 2)
+    .join("")
+    .toUpperCase() || "?";
 
   return (
     <aside className="hidden md:flex md:w-64 md:flex-col md:fixed md:inset-y-0 border-r bg-card">
@@ -45,13 +57,15 @@ export function UserSidebar() {
         })}
       </nav>
       <div className="px-6 py-4 border-t space-y-3">
-        <Link
-          href="/admin"
-          className="flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
-        >
-          <span className="text-base">🛡</span>
-          Admin
-        </Link>
+        {user.role === "admin" && (
+          <Link
+            href="/admin"
+            className="flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
+          >
+            <span className="text-base">🛡</span>
+            Admin
+          </Link>
+        )}
         <Link
           href="/dashboard/video-analysis"
           className="flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
@@ -60,14 +74,17 @@ export function UserSidebar() {
           Video Analysis
           <span className="ml-auto text-[10px] font-medium text-muted-foreground/60 uppercase tracking-wider">Soon</span>
         </Link>
-        <div className="flex items-center gap-3 pt-3 border-t">
-          <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-xs font-bold text-primary">
-            ?
+        <div className="pt-3 border-t space-y-3">
+          <div className="flex items-center gap-3">
+            <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-xs font-bold text-primary">
+              {initials}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium truncate">{user.name}</p>
+              <p className="text-xs text-muted-foreground truncate">{user.email}</p>
+            </div>
           </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium truncate">Player</p>
-            <p className="text-xs text-muted-foreground truncate">Set up profile</p>
-          </div>
+          <LogoutButton />
         </div>
       </div>
     </aside>

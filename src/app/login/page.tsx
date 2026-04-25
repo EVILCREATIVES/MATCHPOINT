@@ -1,15 +1,46 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Logo } from "@/components/shared/logo";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 
 export default function LoginPage() {
+  const router = useRouter();
   const [isSignUp, setIsSignUp] = useState(false);
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setSubmitting(true);
+    try {
+      const url = isSignUp ? "/api/auth/signup" : "/api/auth/login";
+      const body = isSignUp ? { name, email, password } : { email, password };
+      const res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(json.error || `Failed (${res.status})`);
+      }
+      router.push(json.redirect || "/dashboard");
+      router.refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Authentication failed");
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   return (
     <div className="min-h-screen flex items-center justify-center px-4 py-12 bg-background">
@@ -23,32 +54,68 @@ export default function LoginPage() {
 
         <Card>
           <CardContent className="p-6 space-y-4">
-            {isSignUp && (
+            <form onSubmit={handleSubmit} className="space-y-4">
+              {isSignUp && (
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Full Name</label>
+                  <Input
+                    placeholder="Your name"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    required
+                  />
+                </div>
+              )}
               <div className="space-y-2">
-                <label className="text-sm font-medium">Full Name</label>
-                <Input placeholder="Your name" />
+                <label className="text-sm font-medium">Email</label>
+                <Input
+                  placeholder="your@email.com"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                />
               </div>
-            )}
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Email</label>
-              <Input placeholder="your@email.com" type="email" />
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Password</label>
-              <Input placeholder="••••••••" type="password" />
-            </div>
-            <Button className="w-full" asChild>
-              <Link href={isSignUp ? "/onboarding" : "/dashboard"}>
-                {isSignUp ? "Create Account" : "Sign In"}
-              </Link>
-            </Button>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Password</label>
+                <Input
+                  placeholder="••••••••"
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  minLength={isSignUp ? 8 : 1}
+                />
+                {isSignUp && (
+                  <p className="text-[11px] text-muted-foreground">
+                    At least 8 characters.
+                  </p>
+                )}
+              </div>
+
+              {error && (
+                <p className="text-sm text-rose-600 bg-rose-50 dark:bg-rose-950/30 rounded-md px-3 py-2">
+                  {error}
+                </p>
+              )}
+
+              <Button type="submit" className="w-full" disabled={submitting}>
+                {submitting
+                  ? isSignUp ? "Creating…" : "Signing in…"
+                  : isSignUp ? "Create Account" : "Sign In"}
+              </Button>
+            </form>
 
             <Separator />
 
             <p className="text-center text-sm text-muted-foreground">
               {isSignUp ? "Already have an account?" : "Don't have an account?"}{" "}
               <button
-                onClick={() => setIsSignUp(!isSignUp)}
+                type="button"
+                onClick={() => {
+                  setIsSignUp(!isSignUp);
+                  setError(null);
+                }}
                 className="text-primary font-medium hover:underline"
               >
                 {isSignUp ? "Sign In" : "Sign Up"}
@@ -57,18 +124,9 @@ export default function LoginPage() {
           </CardContent>
         </Card>
 
-        {/* Quick access for demo */}
-        <div className="text-center space-y-2">
-          <p className="text-xs text-muted-foreground">Quick Access (Demo)</p>
-          <div className="flex items-center justify-center gap-3">
-            <Button variant="outline" size="sm" asChild>
-              <Link href="/dashboard">User Dashboard</Link>
-            </Button>
-            <Button variant="outline" size="sm" asChild>
-              <Link href="/admin">Admin Panel</Link>
-            </Button>
-          </div>
-        </div>
+        <p className="text-center text-[11px] text-muted-foreground">
+          The first account created becomes the admin.
+        </p>
       </div>
     </div>
   );

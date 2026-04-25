@@ -1,11 +1,12 @@
-import { and, desc, eq, gt, count } from "drizzle-orm";
+import { and, desc, eq, gt, count, gte } from "drizzle-orm";
 import { PageHeader } from "@/components/shared/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { GeneratePlanButton } from "@/components/training/generate-plan-button";
+import { MarkSessionDoneButton } from "@/components/training/mark-session-done-button";
 import { db } from "@/lib/db";
-import { trainingPlans, trainingSessions, sources, techniques } from "@/lib/db/schema";
-import { getCurrentUser } from "@/lib/auth";
+import { trainingPlans, trainingSessions, sources, techniques, progressLogs } from "@/lib/db/schema";
+import { requireUser } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -32,7 +33,7 @@ interface ExerciseShape {
 }
 
 export default async function TrainingPage() {
-  const user = await getCurrentUser();
+  const user = await requireUser();
 
   const [active] = await db
     .select()
@@ -48,6 +49,17 @@ export default async function TrainingPage() {
         .where(eq(trainingSessions.planId, active.id))
         .orderBy(trainingSessions.dayOfWeek, trainingSessions.sortOrder)
     : [];
+
+  // Sessions already logged today (used to show ✓ on the cards)
+  const startOfToday = new Date();
+  startOfToday.setHours(0, 0, 0, 0);
+  const todaysLogs = await db
+    .select({ sessionId: progressLogs.sessionId })
+    .from(progressLogs)
+    .where(and(eq(progressLogs.userId, user.id), gte(progressLogs.date, startOfToday)));
+  const loggedSessionIds = new Set(
+    todaysLogs.map((l) => l.sessionId).filter((id): id is string => Boolean(id))
+  );
 
   // "Stale" detection: have new sources been ingested since the plan was made?
   const [{ value: techniqueCount } = { value: 0 }] = await db
@@ -148,6 +160,12 @@ export default async function TrainingPage() {
                           {s.sessionType.replace(/_/g, " ")} · {s.durationMinutes} min
                         </p>
                       </div>
+                      <MarkSessionDoneButton
+                        sessionId={s.id}
+                        durationMinutes={s.durationMinutes}
+                        focusAreas={active.focusAreas ?? []}
+                        alreadyLogged={loggedSessionIds.has(s.id)}
+                      />
                     </div>
                   </CardHeader>
                   <CardContent className="space-y-3 text-sm">

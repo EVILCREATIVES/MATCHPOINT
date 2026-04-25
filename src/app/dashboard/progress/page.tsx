@@ -3,9 +3,10 @@ import { PageHeader } from "@/components/shared/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatCard } from "@/components/shared/stat-card";
 import { LogSessionButton } from "@/components/progress/log-session-button";
+import { CoachSummaryCard } from "@/components/progress/coach-summary-card";
 import { db } from "@/lib/db";
 import { progressLogs } from "@/lib/db/schema";
-import { getCurrentUser } from "@/lib/auth";
+import { requireUser } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -37,7 +38,7 @@ function computeStreak(dates: Date[]): number {
 }
 
 export default async function ProgressPage() {
-  const user = await getCurrentUser();
+  const user = await requireUser();
 
   const logs = await db
     .select()
@@ -152,15 +153,7 @@ export default async function ProgressPage() {
             </CardContent>
           </Card>
 
-          <Card className="border-dashed">
-            <CardContent className="p-6 text-center">
-              <div className="text-3xl mb-2">🧠</div>
-              <h3 className="font-semibold text-sm">AI Coach Summary</h3>
-              <p className="text-xs text-muted-foreground mt-1">
-                Personalized performance analysis coming soon.
-              </p>
-            </CardContent>
-          </Card>
+          <CoachSummaryCard />
         </div>
       </div>
     </div>

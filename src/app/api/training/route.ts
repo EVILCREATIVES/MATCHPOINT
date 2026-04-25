@@ -14,7 +14,7 @@ import {
   QueryCache,
 } from "@/lib/rag";
 import { getAIService } from "@/lib/ai/service";
-import { getCurrentUser } from "@/lib/auth";
+import { requireUser } from "@/lib/auth";
 import type { UserProfile } from "@/types";
 
 export const maxDuration = 120;
@@ -25,7 +25,7 @@ interface GeneratePlanBody {
 }
 
 export async function GET() {
-  const user = await getCurrentUser();
+  const user = await requireUser();
   const [active] = await db
     .select()
     .from(trainingPlans)
@@ -49,7 +49,7 @@ export async function POST(request: NextRequest) {
     const body: GeneratePlanBody = await request.json().catch(() => ({}));
     const period = body.period ?? "weekly";
 
-    const user = await getCurrentUser();
+    const user = await requireUser();
 
     const [profile] = await db
       .select()

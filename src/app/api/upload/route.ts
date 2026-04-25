@@ -2,6 +2,7 @@ import { put } from "@vercel/blob";
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { sources } from "@/lib/db/schema";
+import { requireAdmin } from "@/lib/auth";
 
 export const maxDuration = 60;
 
@@ -11,6 +12,7 @@ const MAX_SIZE_BYTES = MAX_SIZE_MB * 1024 * 1024;
 const ALLOWED_TYPES = ["application/pdf"];
 
 export async function POST(request: NextRequest) {
+  await requireAdmin();
   const formData = await request.formData();
   const file = formData.get("file") as File | null;
 
@@ -79,7 +81,12 @@ async function triggerIngestion(request: NextRequest, sourceId: string) {
     const origin = new URL(request.url).origin;
     await fetch(`${origin}/api/ingest`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        // Forward the admin's session cookie so the ingest endpoint's
+        // requireAdmin() guard succeeds for this server-to-server call.
+        cookie: request.headers.get("cookie") ?? "",
+      },
       body: JSON.stringify({ sourceId }),
     });
   } catch (error) {

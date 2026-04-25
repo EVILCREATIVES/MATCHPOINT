@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { sources } from "@/lib/db/schema";
 import { z } from "zod";
+import { requireAdmin } from "@/lib/auth";
 
 const createSourceSchema = z.object({
   title: z.string().min(1).max(500),
@@ -19,6 +20,7 @@ const createSourceSchema = z.object({
 
 export async function POST(request: NextRequest) {
   try {
+    await requireAdmin();
     const body = await request.json();
     const data = createSourceSchema.parse(body);
 
