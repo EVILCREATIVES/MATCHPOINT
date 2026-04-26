@@ -5,6 +5,7 @@ import { PageHeader } from "@/components/shared/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AutoRefresh } from "@/components/admin/auto-refresh";
 import { VideoActionsBar } from "@/components/video/video-actions-bar";
+import { AnalysisThinking } from "@/components/video/analysis-thinking";
 import { requireUser } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { practiceSessions, videoAnalyses } from "@/lib/db/schema";
@@ -145,10 +146,8 @@ export default async function PracticeSessionPage(props: {
                       className="w-full max-h-72 rounded-md bg-black"
                     />
 
-                    {v.status === "processing" && (
-                      <p className="text-xs text-muted-foreground">
-                        Gemini is reviewing this take…
-                      </p>
+                    {(v.status === "processing" || v.status === "pending") && (
+                      <AnalysisThinking startedAt={v.createdAt} />
                     )}
 
                     {v.status === "failed" && v.errorMessage && (
