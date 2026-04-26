@@ -155,10 +155,13 @@ export default async function PracticeSessionPage(props: {
                     )}
 
                     {v.status === "failed" && (
-                      <p className="text-xs text-rose-600 bg-rose-50 dark:bg-rose-950/30 rounded-md px-3 py-2 whitespace-pre-wrap break-words">
-                        {v.errorMessage ||
-                          "Analysis failed but no error message was captured. Check Vercel function logs (search for [runVideoAnalysis])."}
-                      </p>
+                      <div className="rounded-md border border-rose-300 bg-rose-50 dark:border-rose-800 dark:bg-rose-950/30 p-3 space-y-2">
+                        <p className="text-xs text-rose-700 dark:text-rose-300 whitespace-pre-wrap break-words">
+                          {v.errorMessage ||
+                            "Analysis failed but no error message was captured. Check Vercel function logs (search for [runVideoAnalysis])."}
+                        </p>
+                        <VideoActionsBar videoId={v.id} status={v.status} />
+                      </div>
                     )}
 
                     {v.status === "completed" && v.feedback && (
