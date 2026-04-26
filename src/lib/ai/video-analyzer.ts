@@ -10,7 +10,7 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import type { UserProfile } from "@/types";
 
-const MODEL = "gemini-3-flash-preview";
+const MODEL = process.env.GEMINI_VIDEO_MODEL || "gemini-2.5-flash";
 
 export interface VideoAnalysisInput {
   blobUrl: string;

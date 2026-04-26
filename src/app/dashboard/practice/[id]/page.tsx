@@ -154,9 +154,10 @@ export default async function PracticeSessionPage(props: {
                       <AnalysisThinking startedAt={v.createdAt} />
                     )}
 
-                    {v.status === "failed" && v.errorMessage && (
-                      <p className="text-xs text-rose-600 bg-rose-50 dark:bg-rose-950/30 rounded-md px-3 py-2">
-                        {v.errorMessage}
+                    {v.status === "failed" && (
+                      <p className="text-xs text-rose-600 bg-rose-50 dark:bg-rose-950/30 rounded-md px-3 py-2 whitespace-pre-wrap break-words">
+                        {v.errorMessage ||
+                          "Analysis failed but no error message was captured. Check Vercel function logs (search for [runVideoAnalysis])."}
                       </p>
                     )}
 

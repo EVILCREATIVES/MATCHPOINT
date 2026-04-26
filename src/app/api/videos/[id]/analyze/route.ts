@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse, after } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { and, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { videoAnalyses } from "@/lib/db/schema";
@@ -24,16 +24,23 @@ export async function POST(
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
-  // Flip to processing immediately so the UI updates on refresh.
-  await db
-    .update(videoAnalyses)
-    .set({ status: "processing", errorMessage: null })
-    .where(eq(videoAnalyses.id, id));
+  // Run analysis INLINE on retry so the error surfaces in the response.
+  // (The initial upload uses after() to keep the upload roundtrip fast.)
+  await runVideoAnalysis(id);
 
-  // Run analysis after the response is sent so the user gets a fast ack.
-  after(async () => {
-    await runVideoAnalysis(id);
-  });
+  // Re-read so we can return whatever state the runner left us in.
+  const [after] = await db
+    .select({ status: videoAnalyses.status, errorMessage: videoAnalyses.errorMessage })
+    .from(videoAnalyses)
+    .where(eq(videoAnalyses.id, id))
+    .limit(1);
 
-  return NextResponse.json({ ok: true, status: "processing" });
+  if (after?.status === "failed") {
+    return NextResponse.json(
+      { error: after.errorMessage || "Analysis failed" },
+      { status: 500 }
+    );
+  }
+
+  return NextResponse.json({ ok: true, status: after?.status ?? "unknown" });
 }
