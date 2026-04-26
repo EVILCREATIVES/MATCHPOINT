@@ -149,6 +149,14 @@ export default async function PracticeSessionPage(props: {
                       preload="metadata"
                       className="w-full max-h-72 rounded-md bg-black"
                     />
+                    <a
+                      href={v.blobUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-[10px] text-muted-foreground hover:underline break-all block"
+                    >
+                      Open raw video: {v.blobUrl}
+                    </a>
 
                     {(v.status === "processing" || v.status === "pending") && (
                       <AnalysisThinking startedAt={v.createdAt} />
