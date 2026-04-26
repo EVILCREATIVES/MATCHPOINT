@@ -383,11 +383,30 @@ export const videoAnalysisStatusEnum = pgEnum("video_analysis_status", [
   "failed",
 ]);
 
+// ── Practice Sessions (groups N takes/reps of one stroke) ──
+
+export const practiceSessions = pgTable(
+  "practice_sessions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id").notNull().references(() => users.id),
+    strokeType: varchar("stroke_type", { length: 50 }).notNull(),
+    plannedReps: integer("planned_reps").notNull().default(1),
+    notes: text("notes"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => ({
+    userIdx: index("practice_sessions_user_idx").on(table.userId),
+  })
+);
+
 export const videoAnalyses = pgTable(
   "video_analyses",
   {
     id: uuid("id").primaryKey().defaultRandom(),
     userId: uuid("user_id").notNull().references(() => users.id),
+    sessionId: uuid("session_id").references(() => practiceSessions.id),
+    takeNumber: integer("take_number"),
     fileName: varchar("file_name", { length: 500 }).notNull(),
     fileSize: integer("file_size").notNull(),
     mimeType: varchar("mime_type", { length: 100 }).notNull(),
@@ -406,6 +425,7 @@ export const videoAnalyses = pgTable(
   },
   (table) => ({
     userIdx: index("video_analyses_user_idx").on(table.userId),
+    sessionIdx: index("video_analyses_session_idx").on(table.sessionId),
   })
 );
 

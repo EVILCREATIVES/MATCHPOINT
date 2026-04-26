@@ -9,6 +9,7 @@ import { LogoutButton } from "@/components/shared/logout-button";
 const userNav = [
   { label: "Dashboard", href: "/dashboard", icon: "◈" },
   { label: "Training", href: "/dashboard/training", icon: "🎯" },
+  { label: "Practice", href: "/dashboard/practice", icon: "🎥" },
   { label: "Lessons", href: "/dashboard/lessons", icon: "📖" },
   { label: "Progress", href: "/dashboard/progress", icon: "📊" },
   { label: "Profile", href: "/dashboard/profile", icon: "⚙" },
@@ -72,7 +73,6 @@ export function UserSidebar({ user }: UserSidebarProps) {
         >
           <span className="text-base">🎥</span>
           Video Analysis
-          <span className="ml-auto text-[10px] font-medium text-muted-foreground/60 uppercase tracking-wider">Soon</span>
         </Link>
         <div className="pt-3 border-t space-y-3">
           <div className="flex items-center gap-3">

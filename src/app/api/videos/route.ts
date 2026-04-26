@@ -1,7 +1,8 @@
 import { put } from "@vercel/blob";
 import { NextRequest, NextResponse } from "next/server";
+import { and, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { videoAnalyses } from "@/lib/db/schema";
+import { videoAnalyses, practiceSessions } from "@/lib/db/schema";
 import { requireUser } from "@/lib/auth";
 import { rateLimit, rateLimitResponse } from "@/lib/rate-limit";
 
@@ -26,11 +27,11 @@ const ALLOWED_STROKES = new Set([
 export async function POST(request: NextRequest) {
   const user = await requireUser();
 
-  // 5 uploads / 10 min per user — videos are expensive on every leg.
+  // 30 uploads / 10 min per user — supports multi-take sessions of up to 20.
   const rl = rateLimit({
     bucket: "video:upload",
     key: user.id,
-    limit: 5,
+    limit: 30,
     windowMs: 10 * 60_000,
   });
   if (!rl.ok) return rateLimitResponse(rl);
@@ -39,6 +40,9 @@ export async function POST(request: NextRequest) {
   const file = formData.get("file") as File | null;
   const strokeType = String(formData.get("strokeType") ?? "").toLowerCase();
   const notes = (formData.get("notes") as string | null) ?? null;
+  const sessionIdRaw = (formData.get("sessionId") as string | null) ?? null;
+  const takeNumberRaw = formData.get("takeNumber");
+  const takeNumber = takeNumberRaw ? parseInt(String(takeNumberRaw), 10) : null;
 
   if (!file) return NextResponse.json({ error: "No file provided" }, { status: 400 });
   if (!ALLOWED_TYPES.has(file.type)) {
@@ -57,11 +61,33 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Invalid stroke type." }, { status: 400 });
   }
 
+  // Validate session ownership if provided.
+  let sessionId: string | null = null;
+  if (sessionIdRaw) {
+    const [sess] = await db
+      .select({ id: practiceSessions.id })
+      .from(practiceSessions)
+      .where(
+        and(
+          eq(practiceSessions.id, sessionIdRaw),
+          eq(practiceSessions.userId, user.id)
+        )
+      )
+      .limit(1);
+    if (!sess) return NextResponse.json({ error: "Invalid session" }, { status: 400 });
+    sessionId = sess.id;
+  }
+
   const safeName = file.name
     .replace(/[^a-zA-Z0-9._-]/g, "_")
     .replace(/_{2,}/g, "_");
 
-  const blob = await put(`videos/${user.id}/${Date.now()}-${safeName}`, file, {
+  // Group multi-take uploads into a per-session folder for tidy storage.
+  const folder = sessionId
+    ? `videos/${user.id}/${sessionId}`
+    : `videos/${user.id}`;
+
+  const blob = await put(`${folder}/${Date.now()}-${safeName}`, file, {
     access: "public",
     addRandomSuffix: true,
     contentType: file.type,
@@ -71,6 +97,8 @@ export async function POST(request: NextRequest) {
     .insert(videoAnalyses)
     .values({
       userId: user.id,
+      sessionId,
+      takeNumber: takeNumber && Number.isFinite(takeNumber) ? takeNumber : null,
       fileName: file.name,
       fileSize: file.size,
       mimeType: file.type,
@@ -82,7 +110,7 @@ export async function POST(request: NextRequest) {
     })
     .returning();
 
-  // Kick off analysis (non-blocking, server-to-server with cookie forwarding).
+  // Kick off analysis (non-blocking).
   void triggerAnalysis(request, row.id);
 
   return NextResponse.json({ id: row.id, status: row.status });

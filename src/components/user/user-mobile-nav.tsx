@@ -8,6 +8,7 @@ import { Logo } from "@/components/shared/logo";
 const baseNav = [
   { label: "Home", href: "/dashboard", icon: "◈" },
   { label: "Training", href: "/dashboard/training", icon: "🎯" },
+  { label: "Practice", href: "/dashboard/practice", icon: "🎥" },
   { label: "Lessons", href: "/dashboard/lessons", icon: "📖" },
   { label: "Progress", href: "/dashboard/progress", icon: "📊" },
 ];
