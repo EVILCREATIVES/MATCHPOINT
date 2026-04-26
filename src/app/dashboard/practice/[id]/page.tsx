@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AutoRefresh } from "@/components/admin/auto-refresh";
 import { VideoActionsBar } from "@/components/video/video-actions-bar";
 import { AnalysisThinking } from "@/components/video/analysis-thinking";
+import { DeleteSessionButton } from "@/components/video/delete-session-button";
 import { requireUser } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { practiceSessions, videoAnalyses } from "@/lib/db/schema";
@@ -72,7 +73,10 @@ export default async function PracticeSessionPage(props: {
         >
           ← All sessions
         </Link>
-        {hasInFlight && <AutoRefresh intervalMs={5000} />}
+        <div className="flex items-center gap-2">
+          {hasInFlight && <AutoRefresh intervalMs={5000} />}
+          <DeleteSessionButton sessionId={session.id} />
+        </div>
       </div>
 
       <PageHeader
