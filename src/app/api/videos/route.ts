@@ -64,9 +64,13 @@ export async function POST(request: NextRequest) {
 
   // Validate session ownership if provided.
   let sessionId: string | null = null;
+  let sessionCreatedAt: Date | null = null;
   if (sessionIdRaw) {
     const [sess] = await db
-      .select({ id: practiceSessions.id })
+      .select({
+        id: practiceSessions.id,
+        createdAt: practiceSessions.createdAt,
+      })
       .from(practiceSessions)
       .where(
         and(
@@ -77,18 +81,39 @@ export async function POST(request: NextRequest) {
       .limit(1);
     if (!sess) return NextResponse.json({ error: "Invalid session" }, { status: 400 });
     sessionId = sess.id;
+    sessionCreatedAt = sess.createdAt;
   }
 
-  const safeName = file.name
-    .replace(/[^a-zA-Z0-9._-]/g, "_")
-    .replace(/_{2,}/g, "_");
+  const ext = file.name.includes(".")
+    ? file.name.split(".").pop()!.toLowerCase()
+    : file.type.includes("mp4")
+      ? "mp4"
+      : file.type.includes("quicktime")
+        ? "mov"
+        : "webm";
 
-  // Group multi-take uploads into a per-session folder for tidy storage.
+  // Human-readable folder layout:
+  //   users/{email-slug}/{YYYY-MM-DD_HH-mm}_{stroke}/take-{N}.{ext}
+  // Falls back to a single dated folder for ad-hoc (non-session) uploads.
+  const userSlug = (user.email.split("@")[0] || user.id)
+    .toLowerCase()
+    .replace(/[^a-z0-9._-]/g, "-")
+    .replace(/-{2,}/g, "-")
+    .slice(0, 60);
+
+  const ts = sessionCreatedAt ?? new Date();
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const dateSlug = `${ts.getUTCFullYear()}-${pad(ts.getUTCMonth() + 1)}-${pad(ts.getUTCDate())}_${pad(ts.getUTCHours())}-${pad(ts.getUTCMinutes())}`;
+
   const folder = sessionId
-    ? `videos/${user.id}/${sessionId}`
-    : `videos/${user.id}`;
+    ? `users/${userSlug}/${dateSlug}_${strokeType}`
+    : `users/${userSlug}/uploads_${dateSlug}`;
 
-  const blob = await put(`${folder}/${Date.now()}-${safeName}`, file, {
+  const baseName = sessionId && takeNumber
+    ? `take-${String(takeNumber).padStart(2, "0")}.${ext}`
+    : `clip-${Date.now()}.${ext}`;
+
+  const blob = await put(`${folder}/${baseName}`, file, {
     access: "public",
     addRandomSuffix: true,
     contentType: file.type,

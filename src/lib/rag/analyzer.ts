@@ -12,7 +12,7 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 import type { DocumentAnalysis, IDocumentAnalyzer } from "./types";
 
 export class GeminiDocumentAnalyzer implements IDocumentAnalyzer {
-  private readonly model = "gemini-3-flash-preview";
+  private readonly model = "gemini-3.1-flash-lite-preview";
   private genAI: GoogleGenerativeAI;
 
   constructor() {

@@ -116,7 +116,7 @@ export default async function AdminDashboardPage() {
             <StatusRow label="Database" ok={dbConfigured} okText="Connected" badText="DATABASE_URL missing" />
             <StatusRow label="Auth" ok={authConfigured} okText="Configured" badText="AUTH_SECRET missing" />
             <StatusRow label="Blob Storage" ok={blobConfigured} okText="Connected" badText="BLOB_READ_WRITE_TOKEN missing" />
-            <StatusRow label="AI Model" ok={aiConfigured} okText="gemini-3-flash-preview" badText="GEMINI_API missing" />
+            <StatusRow label="AI Model" ok={aiConfigured} okText="gemini-3.1-flash-lite-preview" badText="GEMINI_API missing" />
           </div>
         </CardContent>
       </Card>

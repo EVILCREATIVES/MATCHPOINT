@@ -124,7 +124,7 @@ ${recentNotes || "No notes."}
 Do not include disclaimers. Be specific and reference the data.`;
 
     const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: "gemini-3-flash-preview" });
+    const model = genAI.getGenerativeModel({ model: "gemini-3.1-flash-lite-preview" });
     const result = await model.generateContent(prompt);
     const summary = result.response.text();
 
