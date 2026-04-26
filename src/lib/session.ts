@@ -9,7 +9,7 @@
 import { cookies } from "next/headers";
 
 const COOKIE_NAME = "mp_session";
-const COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 30; // 30 days
+const COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 365; // 1 year ("stay logged in")
 
 export interface SessionPayload {
   userId: string;

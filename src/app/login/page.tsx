@@ -67,10 +67,13 @@ export default function LoginPage() {
                 </div>
               )}
               <div className="space-y-2">
-                <label className="text-sm font-medium">Email</label>
+                <label className="text-sm font-medium">
+                  {isSignUp ? "Email" : "Email or username"}
+                </label>
                 <Input
-                  placeholder="your@email.com"
-                  type="email"
+                  placeholder={isSignUp ? "your@email.com" : "your@email.com or ECADMIN"}
+                  type={isSignUp ? "email" : "text"}
+                  autoComplete={isSignUp ? "email" : "username"}
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required

