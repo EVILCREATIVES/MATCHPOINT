@@ -87,6 +87,56 @@ export default function NewSourcePage() {
       return;
     }
 
+    if (selectedType === "website") {
+      if (!websiteUrl.trim()) {
+        setSubmitError("Website URL is required");
+        return;
+      }
+      setSubmitting(true);
+      setSubmitError(null);
+      try {
+        // Use the URL hostname as a placeholder — the analyzer will
+        // overwrite title/summary/tags/etc. once the crawl completes.
+        let placeholderTitle = websiteUrl.trim();
+        try {
+          placeholderTitle = new URL(websiteUrl.trim()).hostname.replace(/^www\./, "");
+        } catch {
+          /* keep raw url */
+        }
+
+        const sourceRes = await fetch("/api/sources", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            title: placeholderTitle,
+            sourceType: "website",
+            sourceUrl: websiteUrl.trim(),
+            visibility: "public",
+            trustLevel: "unreviewed",
+          }),
+        });
+        if (!sourceRes.ok) {
+          const data = await sourceRes.json();
+          throw new Error(data.error || "Failed to create source");
+        }
+        const { source } = await sourceRes.json();
+
+        // Kick off ingestion immediately (analyzer will fill metadata).
+        await fetch("/api/ingest", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ sourceId: source.id }),
+        }).catch(() => undefined);
+
+        router.push("/admin/sources");
+      } catch (err) {
+        setSubmitError(err instanceof Error ? err.message : "Failed to create source");
+      } finally {
+        setSubmitting(false);
+      }
+      return;
+    }
+
     if (!title.trim()) return;
 
     setSubmitting(true);
@@ -176,16 +226,22 @@ export default function NewSourcePage() {
           <Card>
             <CardHeader>
               <CardTitle className="text-base">
-                {selectedType === "pdf" ? "Upload PDF" : "Source Details"}
+                {selectedType === "pdf"
+                  ? "Upload PDF"
+                  : selectedType === "website"
+                    ? "Crawl Website"
+                    : "Source Details"}
               </CardTitle>
               <CardDescription>
                 {selectedType === "pdf"
                   ? "Drop a PDF — title, author, summary, tags, skill level and structured tennis knowledge will be extracted automatically by the AI ingestion pipeline."
-                  : "Provide information about this knowledge source"}
+                  : selectedType === "website"
+                    ? "Paste a URL — we’ll crawl it (same-origin, up to 25 pages), capture animations and figures, then auto-extract title, summary, tags, skill level and structured tennis knowledge."
+                    : "Provide information about this knowledge source"}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              {selectedType !== "pdf" && (
+              {selectedType !== "pdf" && selectedType !== "website" && (
                 <>
                   <div className="space-y-2">
                     <label className="text-sm font-medium">Title *</label>
@@ -315,7 +371,7 @@ export default function NewSourcePage() {
                 </div>
               )}
 
-              {selectedType !== "pdf" && (
+              {selectedType !== "pdf" && selectedType !== "website" && (
                 <div className="space-y-2">
                   <label className="text-sm font-medium">Tags</label>
                   <Input
@@ -329,7 +385,7 @@ export default function NewSourcePage() {
                 </div>
               )}
 
-              {selectedType !== "pdf" && (
+              {selectedType !== "pdf" && selectedType !== "website" && (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <label className="text-sm font-medium">Visibility</label>
@@ -376,14 +432,18 @@ export default function NewSourcePage() {
                   submitting ||
                   (selectedType === "pdf"
                     ? !uploadedFile?.sourceId || uploading
-                    : !title.trim())
+                    : selectedType === "website"
+                      ? !websiteUrl.trim()
+                      : !title.trim())
                 }
               >
                 {submitting
                   ? "Creating…"
                   : selectedType === "pdf"
                   ? "Done — view sources"
-                  : "Add Source & Start Ingestion"}
+                  : selectedType === "website"
+                    ? "Crawl & Ingest"
+                    : "Add Source & Start Ingestion"}
               </Button>
             </div>
           </div>
