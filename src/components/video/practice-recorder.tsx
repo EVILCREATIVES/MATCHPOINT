@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
 
 const STROKES = [
   { value: "forehand", label: "Forehand" },
@@ -40,7 +39,6 @@ function pickMimeType(): string {
 }
 
 export function PracticeRecorder() {
-  const router = useRouter();
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
@@ -281,14 +279,8 @@ export function PracticeRecorder() {
     setPhaseMessage(
       cancelledRef.current ? "Session cancelled" : "Recording complete — analysis in progress"
     );
-
-    // Push to results page after a short delay so any in-flight uploads can hand off ids.
-    if (!cancelledRef.current) {
-      setTimeout(() => {
-        router.push(`/dashboard/practice/${sessionId ?? sessId}`);
-        router.refresh();
-      }, 1200);
-    }
+    // Camera stays on intentionally so the user can start another session
+    // immediately. They can navigate to results via the link below.
   }
 
   function cancelSession() {
@@ -367,8 +359,18 @@ export function PracticeRecorder() {
         )}
         {permission === "granted" && phase === "done" && (
           <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/60 text-white gap-2">
+        {permission === "granted" && phase === "done" && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/60 text-white gap-2 p-6 text-center">
             <span className="text-3xl font-bold">✓ Done</span>
             <span className="text-sm opacity-80">{phaseMessage}</span>
+            {sessionId && (
+              <a
+                href={`/dashboard/practice/${sessionId}`}
+                className="mt-2 rounded-md bg-white text-black font-medium px-4 py-2 text-sm"
+              >
+                View results
+              </a>
+            )}
           </div>
         )}
       </div>
@@ -437,16 +439,26 @@ export function PracticeRecorder() {
         </p>
       )}
 
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 flex-wrap">
         {!recording ? (
-          <button
-            type="button"
-            onClick={startSession}
-            disabled={permission !== "granted"}
-            className="rounded-md bg-primary text-primary-foreground px-4 py-2 text-sm font-medium hover:opacity-90 disabled:opacity-50"
-          >
-            Start session ({reps} {reps === 1 ? "rep" : "reps"})
-          </button>
+          <>
+            <button
+              type="button"
+              onClick={startSession}
+              disabled={permission !== "granted"}
+              className="rounded-md bg-primary text-primary-foreground px-4 py-2 text-sm font-medium hover:opacity-90 disabled:opacity-50"
+            >
+              {phase === "done" ? "Record another session" : `Start session (${reps} ${reps === 1 ? "rep" : "reps"})`}
+            </button>
+            {phase === "done" && sessionId && (
+              <a
+                href={`/dashboard/practice/${sessionId}`}
+                className="rounded-md border px-4 py-2 text-sm font-medium hover:bg-muted"
+              >
+                View results →
+              </a>
+            )}
+          </>
         ) : (
           <button
             type="button"
