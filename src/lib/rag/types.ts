@@ -163,7 +163,12 @@ export interface IReranker {
 }
 
 export interface IDocumentAnalyzer {
-  analyze(input: { buffer: Buffer; mimeType: string; filename?: string }): Promise<DocumentAnalysis>;
+  analyze(input: {
+    buffer?: Buffer;
+    mimeType?: string;
+    text?: string;
+    filename?: string;
+  }): Promise<DocumentAnalysis>;
 }
 
 export interface IQueryCache {

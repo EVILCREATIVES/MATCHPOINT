@@ -11,4 +11,5 @@ export { GeminiReranker } from "./reranker";
 export { GeminiDocumentAnalyzer } from "./analyzer";
 export { QueryCache } from "./cache";
 export { PdfDocumentParser } from "./parser";
+export { WebsiteParser } from "./website-parser";
 export { IngestionPipeline } from "./pipeline";

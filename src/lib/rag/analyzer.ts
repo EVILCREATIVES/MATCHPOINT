@@ -23,7 +23,12 @@ export class GeminiDocumentAnalyzer implements IDocumentAnalyzer {
     this.genAI = new GoogleGenerativeAI(apiKey);
   }
 
-  async analyze(input: { buffer: Buffer; mimeType: string; filename?: string }): Promise<DocumentAnalysis> {
+  async analyze(input: {
+    buffer?: Buffer;
+    mimeType?: string;
+    text?: string;
+    filename?: string;
+  }): Promise<DocumentAnalysis> {
     const model = this.genAI.getGenerativeModel({
       model: this.model,
       generationConfig: { responseMimeType: "application/json" },
@@ -31,15 +36,27 @@ export class GeminiDocumentAnalyzer implements IDocumentAnalyzer {
 
     const prompt = buildPrompt(input.filename);
 
-    const result = await model.generateContent([
-      {
+    // Two modes: binary (PDF) via inlineData, or plain text (website crawl).
+    const parts: Array<{ inlineData: { mimeType: string; data: string } } | { text: string }> = [];
+    if (input.buffer && input.mimeType) {
+      parts.push({
         inlineData: {
           mimeType: input.mimeType,
           data: input.buffer.toString("base64"),
         },
-      },
-      { text: prompt },
-    ]);
+      });
+      parts.push({ text: prompt });
+    } else if (input.text) {
+      // Cap to ~200k chars to stay safely under model context.
+      const trimmed = input.text.slice(0, 200_000);
+      parts.push({
+        text: `${prompt}\n\n--- DOCUMENT TEXT ---\n${trimmed}`,
+      });
+    } else {
+      throw new Error("Analyzer requires either { buffer, mimeType } or { text }");
+    }
+
+    const result = await model.generateContent(parts);
 
     const text = result.response.text();
     const parsed = safeParseJson(text);

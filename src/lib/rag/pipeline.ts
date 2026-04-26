@@ -93,18 +93,27 @@ export class IngestionPipeline implements IIngestionPipeline {
       if (!source) throw new Error(`Source not found: ${sourceId}`);
       if (!source.sourceUrl) throw new Error(`Source has no URL: ${sourceId}`);
 
-      // Download from Vercel Blob (public URL with unguessable suffix)
-      const response = await fetch(source.sourceUrl);
-      if (!response.ok) {
-        throw new Error(
-          `Failed to download file from ${source.sourceUrl}: ${response.status} ${response.statusText}`
-        );
-      }
-      const buffer = Buffer.from(await response.arrayBuffer());
-      const mimeType = source.sourceType === "pdf" ? "application/pdf" : "text/plain";
-
       // Pass 1 — text path (parse + chunk + embed + store)
-      const parsed = sanitizeForPg(await this.parser.parse(buffer, mimeType));
+      // Dispatch parser by sourceType. PDFs are downloaded then parsed;
+      // websites are crawled by the parser itself.
+      let parsed: ParsedDocument;
+      let buffer: Buffer | null = null;
+      if (source.sourceType === "website") {
+        const { WebsiteParser } = await import("./website-parser");
+        const webParser = new WebsiteParser();
+        parsed = sanitizeForPg(await webParser.parseUrl(source.sourceUrl));
+      } else {
+        const response = await fetch(source.sourceUrl);
+        if (!response.ok) {
+          throw new Error(
+            `Failed to download file from ${source.sourceUrl}: ${response.status} ${response.statusText}`
+          );
+        }
+        buffer = Buffer.from(await response.arrayBuffer());
+        const mimeType =
+          source.sourceType === "pdf" ? "application/pdf" : "text/plain";
+        parsed = sanitizeForPg(await this.parser.parse(buffer, mimeType));
+      }
       const textChunks = this.chunker.chunk(parsed.content, { pages: parsed.pages });
 
       if (textChunks.length === 0) {
@@ -133,7 +142,18 @@ export class IngestionPipeline implements IIngestionPipeline {
 
       // Pass 2 — structured analysis (parallel with embedding)
       const analysisPromise: Promise<DocumentAnalysis | null> = runAnalysis
-        ? this.analyzer!.analyze({ buffer, mimeType, filename: source.title })
+        ? this.analyzer!.analyze(
+            buffer
+              ? {
+                  buffer,
+                  mimeType:
+                    source.sourceType === "pdf"
+                      ? "application/pdf"
+                      : "text/plain",
+                  filename: source.title,
+                }
+              : { text: parsed.content, filename: source.title }
+          )
             .then((a) => (a ? sanitizeForPg(a) : a))
             .catch((err) => {
             console.warn("Analyzer failed, continuing without structured data:", err);
@@ -162,6 +182,32 @@ export class IngestionPipeline implements IIngestionPipeline {
       const [analysis] = await Promise.all([analysisPromise, embedPromise]);
 
       let totalChunks = insertedTextChunks.length;
+
+      // For websites, persist the crawled media (images, videos, lottie,
+      // embedded iframes) as `sourceFigures` so animations and illustrations
+      // remain referenceable. We do not embed these — they're metadata-only.
+      if (source.sourceType === "website") {
+        const crawled = (parsed.metadata?.figures as
+          | Array<{ url: string; type: string; alt?: string; pageUrl: string }>
+          | undefined) ?? [];
+        if (crawled.length > 0) {
+          await db.insert(sourceFigures).values(
+            crawled.map((m) => ({
+              sourceId,
+              chunkId: null,
+              pageNumber: null,
+              caption: m.alt || m.url.split("/").pop() || m.type,
+              description: `${m.type} on ${m.pageUrl}`,
+              metadata: {
+                url: m.url,
+                type: m.type,
+                pageUrl: m.pageUrl,
+                source: "crawl",
+              },
+            }))
+          );
+        }
+      }
 
       // Persist structured knowledge + figures + auto-fill source metadata
       if (analysis) {
