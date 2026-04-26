@@ -71,7 +71,7 @@ export default function LoginPage() {
                   {isSignUp ? "Email" : "Email or username"}
                 </label>
                 <Input
-                  placeholder={isSignUp ? "your@email.com" : "your@email.com or ECADMIN"}
+                  placeholder="your@email.com"
                   type={isSignUp ? "email" : "text"}
                   autoComplete={isSignUp ? "email" : "username"}
                   value={email}
