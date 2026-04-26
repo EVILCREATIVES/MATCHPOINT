@@ -80,22 +80,47 @@ Watch the clip and produce a JSON object EXACTLY matching this shape — no pros
 Be specific (cite frames / moments when possible), be honest, and prioritize one or two improvements over a long list.`;
 
   const genAI = new GoogleGenerativeAI(apiKey);
-  const model = genAI.getGenerativeModel({ model: MODEL });
-
-  const result = await model.generateContent([
-    {
-      inlineData: {
-        mimeType: input.mimeType,
-        data: base64,
-      },
+  const model = genAI.getGenerativeModel({
+    model: MODEL,
+    generationConfig: {
+      responseMimeType: "application/json",
+      temperature: 0.4,
     },
-    { text: prompt },
-  ]);
+  });
 
-  const text = result.response.text();
+  let text: string;
+  try {
+    const result = await model.generateContent([
+      {
+        inlineData: {
+          mimeType: input.mimeType,
+          data: base64,
+        },
+      },
+      { text: prompt },
+    ]);
+    text = result.response.text();
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    throw new Error(`Gemini call failed: ${msg}`);
+  }
+
+  // Strip optional markdown fences just in case.
   const match = text.match(/```(?:json)?\s*([\s\S]*?)```/);
   const jsonStr = (match?.[1] ?? text).trim();
-  const parsed = JSON.parse(jsonStr);
+  let parsed: {
+    feedback?: unknown;
+    rubricScores?: Record<string, unknown>;
+    keyTakeaways?: unknown;
+    drillSuggestions?: unknown;
+  };
+  try {
+    parsed = JSON.parse(jsonStr);
+  } catch {
+    throw new Error(
+      `Gemini returned non-JSON output (first 200 chars): ${text.slice(0, 200)}`
+    );
+  }
 
   // Coerce + clamp rubric scores to numbers in [0,10].
   const scores: Record<string, number> = {};

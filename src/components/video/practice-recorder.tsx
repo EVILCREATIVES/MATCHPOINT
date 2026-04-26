@@ -101,6 +101,19 @@ export function PracticeRecorder() {
     };
   }, []);
 
+  // Warn the user before they navigate away while takes are still uploading.
+  const hasUploading = takes.some((t) => t.state === "uploading");
+  useEffect(() => {
+    if (!hasUploading) return;
+    const handler = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      // Required for some browsers to actually show the prompt.
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [hasUploading]);
+
   function sleep(ms: number) {
     return new Promise<void>((resolve) => setTimeout(resolve, ms));
   }
@@ -354,7 +367,12 @@ export function PracticeRecorder() {
           <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/60 text-white gap-2 p-6 text-center">
             <span className="text-3xl font-bold">✓ Done</span>
             <span className="text-sm opacity-80">{phaseMessage}</span>
-            {sessionId && (
+            {sessionId && hasUploading && (
+              <span className="mt-2 text-xs opacity-80">
+                Uploading takes — please don&apos;t leave this page…
+              </span>
+            )}
+            {sessionId && !hasUploading && (
               <a
                 href={`/dashboard/practice/${sessionId}`}
                 className="mt-2 rounded-md bg-white text-black font-medium px-4 py-2 text-sm"
@@ -443,10 +461,14 @@ export function PracticeRecorder() {
             </button>
             {phase === "done" && sessionId && (
               <a
-                href={`/dashboard/practice/${sessionId}`}
-                className="rounded-md border px-4 py-2 text-sm font-medium hover:bg-muted"
+                href={hasUploading ? "#" : `/dashboard/practice/${sessionId}`}
+                aria-disabled={hasUploading}
+                onClick={(e) => {
+                  if (hasUploading) e.preventDefault();
+                }}
+                className={`rounded-md border px-4 py-2 text-sm font-medium ${hasUploading ? "opacity-50 cursor-not-allowed" : "hover:bg-muted"}`}
               >
-                View results →
+                {hasUploading ? "Uploading…" : "View results →"}
               </a>
             )}
           </>
