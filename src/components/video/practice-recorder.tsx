@@ -351,8 +351,6 @@ export function PracticeRecorder() {
           </div>
         )}
         {permission === "granted" && phase === "done" && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/60 text-white gap-2">
-        {permission === "granted" && phase === "done" && (
           <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/60 text-white gap-2 p-6 text-center">
             <span className="text-3xl font-bold">✓ Done</span>
             <span className="text-sm opacity-80">{phaseMessage}</span>
