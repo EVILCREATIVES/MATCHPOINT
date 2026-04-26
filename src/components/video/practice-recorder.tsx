@@ -12,7 +12,7 @@ const STROKES = [
   { value: "other", label: "Other" },
 ] as const;
 
-const REP_DURATION_S = 10;
+const REP_DURATION_S = 5;
 const COUNTDOWN_S = 3;
 const REST_BETWEEN_REPS_S = 2;
 
@@ -164,6 +164,13 @@ export function PracticeRecorder() {
     const res = await fetch("/api/videos", { method: "POST", body: fd });
     const json = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(json.error || `Upload failed (${res.status})`);
+
+    // Fallback: ensure analysis is triggered even if the server-side
+    // `after()` hook is skipped. The endpoint is idempotent (already-completed
+    // videos return ok without re-analyzing).
+    if (json.id) {
+      fetch(`/api/videos/${json.id}/analyze`, { method: "POST" }).catch(() => {});
+    }
     return json;
   }
 

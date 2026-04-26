@@ -1,5 +1,5 @@
 import { put } from "@vercel/blob";
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 import { and, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { videoAnalyses, practiceSessions } from "@/lib/db/schema";
@@ -110,23 +110,28 @@ export async function POST(request: NextRequest) {
     })
     .returning();
 
-  // Kick off analysis (non-blocking).
-  void triggerAnalysis(request, row.id);
+  // Kick off analysis after the response is sent — `after()` keeps the
+  // serverless function alive past the response so the fetch actually runs.
+  const origin = new URL(request.url).origin;
+  const cookie = request.headers.get("cookie") ?? "";
+  after(async () => {
+    try {
+      const res = await fetch(`${origin}/api/videos/${row.id}/analyze`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", cookie },
+      });
+      if (!res.ok) {
+        console.error(
+          "Analyze trigger non-OK for",
+          row.id,
+          res.status,
+          await res.text().catch(() => "")
+        );
+      }
+    } catch (err) {
+      console.error("Failed to trigger video analysis for", row.id, err);
+    }
+  });
 
   return NextResponse.json({ id: row.id, status: row.status });
-}
-
-async function triggerAnalysis(request: NextRequest, id: string) {
-  try {
-    const origin = new URL(request.url).origin;
-    await fetch(`${origin}/api/videos/${id}/analyze`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        cookie: request.headers.get("cookie") ?? "",
-      },
-    });
-  } catch (err) {
-    console.error("Failed to trigger video analysis for", id, err);
-  }
 }
