@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { videoAnalyses, practiceSessions } from "@/lib/db/schema";
 import { requireUser } from "@/lib/auth";
 import { rateLimit, rateLimitResponse } from "@/lib/rate-limit";
+import { runVideoAnalysis } from "@/lib/ai/run-video-analysis";
 
 export const maxDuration = 60;
 
@@ -110,27 +111,10 @@ export async function POST(request: NextRequest) {
     })
     .returning();
 
-  // Kick off analysis after the response is sent — `after()` keeps the
-  // serverless function alive past the response so the fetch actually runs.
-  const origin = new URL(request.url).origin;
-  const cookie = request.headers.get("cookie") ?? "";
+  // Run analysis after the response is sent. We call the analyzer directly
+  // (not over HTTP) so we don't depend on internal cookie forwarding.
   after(async () => {
-    try {
-      const res = await fetch(`${origin}/api/videos/${row.id}/analyze`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", cookie },
-      });
-      if (!res.ok) {
-        console.error(
-          "Analyze trigger non-OK for",
-          row.id,
-          res.status,
-          await res.text().catch(() => "")
-        );
-      }
-    } catch (err) {
-      console.error("Failed to trigger video analysis for", row.id, err);
-    }
+    await runVideoAnalysis(row.id);
   });
 
   return NextResponse.json({ id: row.id, status: row.status });

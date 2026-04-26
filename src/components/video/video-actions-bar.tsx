@@ -46,16 +46,27 @@ export function VideoActionsBar({
 
   return (
     <div className="flex items-center gap-2">
-      {status === "failed" && (
-        <button
-          type="button"
-          onClick={handleRetry}
-          disabled={busy !== null}
-          className="text-[11px] font-medium rounded-md border px-2 py-1 hover:bg-accent disabled:opacity-50"
-        >
-          {busy === "retry" ? "Retrying…" : "↻ Retry"}
-        </button>
-      )}
+      <button
+        type="button"
+        onClick={handleRetry}
+        disabled={busy !== null || status === "processing"}
+        className="text-[11px] font-medium rounded-md border px-2 py-1 hover:bg-accent disabled:opacity-50"
+        title={
+          status === "completed"
+            ? "Run analysis again"
+            : status === "failed"
+              ? "Retry analysis"
+              : "Run analysis"
+        }
+      >
+        {busy === "retry"
+          ? "Working…"
+          : status === "completed"
+            ? "↻ Re-analyze"
+            : status === "failed"
+              ? "↻ Retry"
+              : "▶ Analyze"}
+      </button>
       <button
         type="button"
         onClick={handleDelete}

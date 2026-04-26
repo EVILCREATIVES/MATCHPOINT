@@ -162,13 +162,6 @@ export function PracticeRecorder() {
     const res = await fetch("/api/videos", { method: "POST", body: fd });
     const json = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(json.error || `Upload failed (${res.status})`);
-
-    // Fallback: ensure analysis is triggered even if the server-side
-    // `after()` hook is skipped. The endpoint is idempotent (already-completed
-    // videos return ok without re-analyzing).
-    if (json.id) {
-      fetch(`/api/videos/${json.id}/analyze`, { method: "POST" }).catch(() => {});
-    }
     return json;
   }
 
