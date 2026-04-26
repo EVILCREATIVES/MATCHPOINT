@@ -75,12 +75,7 @@ export default async function PracticeSessionPage(props: {
       </div>
 
       <PageHeader
-        title={
-          <span className="capitalize">
-            {session.strokeType} · {session.plannedReps}{" "}
-            {session.plannedReps === 1 ? "rep" : "reps"}
-          </span>
-        }
+        title={`${session.strokeType.charAt(0).toUpperCase()}${session.strokeType.slice(1)} · ${session.plannedReps} ${session.plannedReps === 1 ? "rep" : "reps"}`}
         description={`${new Date(session.createdAt).toLocaleString()}${session.notes ? ` · ${session.notes}` : ""}`}
       />
 
