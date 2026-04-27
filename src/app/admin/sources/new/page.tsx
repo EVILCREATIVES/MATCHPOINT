@@ -157,9 +157,7 @@ export default function NewSourcePage() {
           author: author.trim() || undefined,
           description: description.trim() || undefined,
           sourceUrl:
-            selectedType === "website" ? websiteUrl.trim()
-            : selectedType === "youtube" ? youtubeUrl.trim()
-            : undefined,
+            selectedType === "youtube" ? youtubeUrl.trim() : undefined,
           skillLevel: skillLevel || undefined,
           tags,
           visibility,
