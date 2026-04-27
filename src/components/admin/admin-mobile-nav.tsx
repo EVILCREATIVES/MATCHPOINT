@@ -8,6 +8,7 @@ import { Logo } from "@/components/shared/logo";
 const adminMobileNav = [
   { label: "Dashboard", href: "/admin", icon: "◈" },
   { label: "Sources", href: "/admin/sources", icon: "◉" },
+  { label: "Pro Notes", href: "/admin/pro-notes/new", icon: "✎" },
   { label: "Taxonomy", href: "/admin/taxonomy", icon: "◊" },
   { label: "Settings", href: "/admin/settings", icon: "⚙" },
 ];

@@ -10,6 +10,7 @@ const adminNav = [
   { label: "Dashboard", href: "/admin", icon: "◈" },
   { label: "Sources", href: "/admin/sources", icon: "◉" },
   { label: "Add Source", href: "/admin/sources/new", icon: "⊕" },
+  { label: "Pro Notes", href: "/admin/pro-notes/new", icon: "✎" },
   { label: "Taxonomy", href: "/admin/taxonomy", icon: "◊" },
   { label: "Ingestion", href: "/admin/ingestion", icon: "⟳" },
   { label: "Settings", href: "/admin/settings", icon: "⚙" },
