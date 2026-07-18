@@ -429,6 +429,71 @@ export const videoAnalyses = pgTable(
   })
 );
 
+// ── Doc Check-In (body map + AI physio guidance) ──
+
+export const bodyViewEnum = pgEnum("body_view", ["front", "back"]);
+export const bodyLayerEnum = pgEnum("body_layer", ["muscle", "skeleton"]);
+export const bodySideEnum = pgEnum("body_side", ["left", "right", "center"]);
+export const exerciseCategoryEnum = pgEnum("exercise_category", [
+  "stretch",
+  "strengthen",
+  "mobility",
+  "stability",
+  "recovery",
+]);
+
+// Curated exercise library (real, vetted media URLs). The AI matches
+// recommendations against this table; unmatched suggestions fall back to
+// a generated YouTube search link at request time.
+export const exerciseLibrary = pgTable(
+  "exercise_library",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    name: varchar("name", { length: 255 }).notNull(),
+    slug: varchar("slug", { length: 255 }).notNull().unique(),
+    description: text("description").notNull(),
+    category: exerciseCategoryEnum("category").notNull().default("mobility"),
+    // Canonical body-region ids this exercise targets (see lib/doc-checkin/regions).
+    bodyRegions: jsonb("body_regions").$type<string[]>().default([]),
+    instructions: jsonb("instructions").$type<string[]>().default([]),
+    equipment: jsonb("equipment").$type<string[]>().default([]),
+    difficulty: skillLevelEnum("difficulty").default("beginner"),
+    mediaUrl: text("media_url"),
+    mediaType: varchar("media_type", { length: 20 }), // "video" | "image"
+    thumbnailUrl: text("thumbnail_url"),
+    isActive: boolean("is_active").notNull().default(true),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => ({
+    regionsIdx: index("exercise_library_regions_idx").using("gin", table.bodyRegions),
+  })
+);
+
+// One saved body check-in and the AI's structured response.
+export const docCheckins = pgTable(
+  "doc_checkins",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id").notNull().references(() => users.id),
+    view: bodyViewEnum("view").notNull().default("front"),
+    layer: bodyLayerEnum("layer").notNull().default("muscle"),
+    gender: varchar("gender", { length: 20 }), // figure shown (male/female)
+    region: varchar("region", { length: 100 }).notNull(), // canonical region id
+    regionLabel: varchar("region_label", { length: 255 }).notNull(),
+    side: bodySideEnum("side").notNull().default("center"),
+    painLevel: integer("pain_level").notNull().default(0), // 0–10
+    painType: varchar("pain_type", { length: 50 }), // ache/sharp/stiff/burning/tingling
+    notes: text("notes"),
+    // Structured advice: { summary, potentialCauses[], selfCare[],
+    //   exercises[{name, why, url, source}], whenToSeeDoctor[], disclaimer }
+    aiResponse: jsonb("ai_response").$type<Record<string, unknown>>().default({}),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => ({
+    userIdx: index("doc_checkins_user_idx").on(table.userId),
+  })
+);
+
 // ── Password Reset Tokens ──
 
 export const passwordResetTokens = pgTable(

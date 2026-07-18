@@ -11,6 +11,8 @@
     "db:migrate": "drizzle-kit migrate",
     "db:push": "drizzle-kit push",
     "db:setup": "node scripts/db-setup.js",
+    "seed:exercises": "node scripts/seed-exercises.js",
+    "fetch:anatomy": "node scripts/fetch-anatomy.js",
     "db:studio": "drizzle-kit studio"
   },
   "dependencies": {
@@ -29,6 +31,8 @@
     "@radix-ui/react-tabs": "^1.1.0",
     "@radix-ui/react-toast": "^1.2.0",
     "@radix-ui/react-tooltip": "^1.1.0",
+    "@react-three/drei": "^10.7.7",
+    "@react-three/fiber": "^9.6.1",
     "@types/pdf-parse": "^1.1.5",
     "@vercel/blob": "^2.0.0",
     "bcryptjs": "^2.4.3",
@@ -45,12 +49,13 @@
     "react-dom": "^19.0.0",
     "tailwind-merge": "^2.3.0",
     "tailwindcss-animate": "^1.0.7",
+    "three": "^0.185.1",
     "zod": "^3.23.0",
     "zustand": "^4.5.0"
   },
   "devDependencies": {
-    "@types/node": "^20.0.0",
     "@types/bcryptjs": "^2.4.6",
+    "@types/node": "^20.0.0",
     "@types/pdf-parse": "^1.1.4",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",

@@ -10,6 +10,7 @@ const userNav = [
   { label: "Dashboard", href: "/dashboard", icon: "◈" },
   { label: "Training", href: "/dashboard/training", icon: "🎯" },
   { label: "Practice", href: "/dashboard/practice", icon: "🎥" },
+  { label: "Doc Check-In", href: "/dashboard/doc-check-in", icon: "🩺" },
   { label: "Lessons", href: "/dashboard/lessons", icon: "📖" },
   { label: "Progress", href: "/dashboard/progress", icon: "📊" },
   { label: "Profile", href: "/dashboard/profile", icon: "⚙" },
