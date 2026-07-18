@@ -5,7 +5,7 @@ import { Canvas } from "@react-three/fiber";
 import { OrbitControls, ContactShadows, useGLTF } from "@react-three/drei";
 import { BodyModel, type SelectedRegion } from "./body-model";
 import { GlbBody } from "./glb-body";
-import { ANATOMY_ASSETS, anatomyAssetUrl } from "./asset-manifest";
+import { ANATOMY_ASSETS, ANATOMY_ROTATION_Y, anatomyAssetUrl } from "./asset-manifest";
 import type { BodyLayer } from "@/lib/doc-checkin/regions";
 
 interface BodyCanvasProps {
@@ -61,6 +61,7 @@ function AnatomyLayer(props: BodyCanvasProps) {
         <GlbBody
           url={url}
           layer={layer}
+          rotationY={ANATOMY_ROTATION_Y}
           selected={selected}
           onSelect={onSelect}
           onHover={onHover}

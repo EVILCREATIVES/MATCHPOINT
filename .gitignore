@@ -36,3 +36,7 @@ next-env.d.ts
 
 # uploads
 /uploads
+
+# raw uncompressed anatomy source GLBs (too big for git / the web).
+# Compressed, committable versions live in public/anatomy/.
+/public/*.glb
