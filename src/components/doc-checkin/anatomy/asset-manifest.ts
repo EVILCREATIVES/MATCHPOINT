@@ -20,8 +20,8 @@ type AssetKey = `${Gender}-${BodyLayer}`;
 export const ANATOMY_ASSETS: Record<AssetKey, string | null> = {
   // Z-Anatomy "Myology" (muscles), decimated + meshopt-compressed to ~14 MB.
   "male-muscle": "/anatomy/muscle.glb",
-  // No osteology/skeleton mesh yet → procedural fallback. Add one and set here.
-  "male-skeleton": null,
+  // Z-Anatomy "Arthrology" (bones + joints) as the skeleton layer, ~3 MB.
+  "male-skeleton": "/anatomy/skeleton.glb",
   // Z-Anatomy models are male-only; female uses the procedural mannequin.
   "female-muscle": null,
   "female-skeleton": null,
@@ -34,7 +34,7 @@ export const ANATOMY_ROTATION_Y = 0;
 
 /** Attribution shown under the model (CC-BY-SA requires it). */
 export const ANATOMY_ATTRIBUTION: string | null =
-  "3D muscle model: Z-Anatomy (z-anatomy.com), CC BY-SA 4.0.";
+  "3D anatomy models: Z-Anatomy (z-anatomy.com), CC BY-SA 4.0.";
 
 export function anatomyAssetUrl(gender: Gender, layer: BodyLayer): string | null {
   return ANATOMY_ASSETS[`${gender}-${layer}`] ?? null;
