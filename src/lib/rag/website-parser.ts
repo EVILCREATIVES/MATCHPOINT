@@ -174,7 +174,7 @@ export class WebsiteParser implements IDocumentParser {
     // Preserve heading hierarchy and paragraph breaks.
     const blocks: string[] = [];
     main.find("h1, h2, h3, h4, p, li, blockquote, figcaption").each((_, el) => {
-      const tag = (el as cheerio.Element & { tagName?: string }).tagName ?? "p";
+      const tag = (el as { tagName?: string }).tagName ?? "p";
       const txt = $(el).text().replace(/\s+/g, " ").trim();
       if (!txt) return;
       if (/^h[1-4]$/.test(tag)) {
